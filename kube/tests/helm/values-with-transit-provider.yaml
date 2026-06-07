@@ -1,0 +1,33 @@
+namespace: garuda
+name: wg-pt
+config:
+  kernel_ifname: wg-pt
+  private_key: stubprivatekey
+  address: 192.0.2.2/30
+  subnet: 192.0.2.0/30
+  listen_port: null
+  endpoint_host: null
+peer:
+  public_key: stubpublickey
+  endpoint_host: hub.example.net
+  endpoint_listen_port: 51820
+  preshared_key: ""
+  address: 192.0.2.1/30
+allowed_nets:
+  - 0.0.0.0/0
+table: "off"
+persistent_keepalive: 25
+nic_attach:
+  - backbone
+  - border
+images:
+  wireguard: ghcr.io/garuda-tunnel/garuda-wireguard:latest
+  frr: ghcr.io/garuda-tunnel/garuda-frr-sidecar:latest
+ospf:
+  router_id: 10.130.30.1
+  interfaces:
+    - wg-pt
+  passive_interfaces: []
+  default_originate: true
+  redistribute: []
+  transit_provider: true
