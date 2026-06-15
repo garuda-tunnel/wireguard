@@ -125,8 +125,9 @@ variable "nic_attach" {
 }
 
 variable "wireguard_image" {
-  description = "Image reference for the wg container."
+  description = "Image reference for the wg container. Empty ⇒ use the chart's pinned digest."
   type        = string
+  default     = ""
 }
 
 variable "frr_image" {

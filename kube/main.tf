@@ -7,6 +7,10 @@ locals {
     redistribute       = var.ospf.redistribute
     transit_provider   = try(var.ospf.transit_provider, false)
   }
+  images_override = merge(
+    var.wireguard_image == "" ? {} : { wireguard = var.wireguard_image },
+    var.frr_image == "" ? {} : { frr = var.frr_image },
+  )
 }
 
 resource "helm_release" "wireguard" {
@@ -30,10 +34,7 @@ resource "helm_release" "wireguard" {
       table                = var.table
       persistent_keepalive = var.persistent_keepalive
       nic_attach           = var.nic_attach
-      images = {
-        wireguard = var.wireguard_image
-        frr       = var.frr_image
-      }
+      images = local.images_override
       ospf = local.ospf_values
       transit = {
         interfaces = var.transit.interfaces

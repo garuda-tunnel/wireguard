@@ -20,7 +20,7 @@ nic_attach:
   - backbone
   - border
 images:
-  wireguard: ""
+  wireguard: "ghcr.io/garuda-tunnel/garuda-wireguard@sha256:0e48c83feff355c3959229e1b7d1bf065a25103dd17c80005f71aa0ceb2c67c0"
   frr: ""
 # ospf is null when omitted; FRR sidecar is then NOT rendered.
 ospf: null

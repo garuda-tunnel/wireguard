@@ -159,3 +159,41 @@ run "invalid_ospf_redistribute_value_rejected" {
 
   expect_failures = [var.ospf]
 }
+
+run "empty_image_vars_omit_images_keys" {
+  command = plan
+
+  variables {
+    wireguard_image = ""
+    frr_image       = ""
+  }
+
+  # With both image vars empty, local.images_override == {} so the rendered
+  # helm values carry an empty images map. Helm then deep-merges this no-op
+  # overlay onto the chart's values.yaml, preserving the chart-pinned digest.
+  assert {
+    condition     = strcontains(helm_release.wireguard.values[0], "\"images\": {}")
+    error_message = "with empty image vars, rendered images must be an empty map so the chart's pinned digest wins"
+  }
+}
+
+run "nonempty_wireguard_image_overrides" {
+  command = plan
+
+  variables {
+    wireguard_image = "ghcr.io/garuda-tunnel/garuda-wireguard@sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    frr_image       = ""
+  }
+
+  # A non-empty wireguard_image must flow into images.wireguard (overriding the
+  # chart default); frr stays omitted because frr_image is empty.
+  assert {
+    condition     = strcontains(helm_release.wireguard.values[0], "\"wireguard\": \"ghcr.io/garuda-tunnel/garuda-wireguard@sha256:1111111111111111111111111111111111111111111111111111111111111111\"")
+    error_message = "non-empty wireguard_image must appear under images.wireguard"
+  }
+
+  assert {
+    condition     = !strcontains(helm_release.wireguard.values[0], "\"frr\":")
+    error_message = "with empty frr_image, the frr key must be omitted from images override"
+  }
+}
