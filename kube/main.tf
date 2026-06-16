@@ -17,11 +17,15 @@ resource "helm_release" "wireguard" {
   name             = var.name
   namespace        = var.namespace
   create_namespace = false
-  chart            = "${path.module}/charts/wireguard"
 
-  # Resolve the frr-sidecar library chart from OCI
-  # (oci://ghcr.io/garuda-tunnel/charts, pinned in Chart.yaml) on every apply.
-  # Helm fetches it into charts/frr-sidecar-<version>.tgz (gitignored).
+  # Consume the published chart from OCI by an exact pinned version.
+  # Source stays in kube/charts/wireguard for release-please / CI / local dev.
+  repository = "oci://ghcr.io/garuda-tunnel/charts"
+  chart      = "wireguard"
+  version    = var.chart_version
+
+  # No-op for the OCI path (dependency is vendored in the published tgz);
+  # kept so the local-path dev/hotfix escape hatch still resolves frr-sidecar.
   dependency_update = true
 
   values = [
@@ -34,8 +38,8 @@ resource "helm_release" "wireguard" {
       table                = var.table
       persistent_keepalive = var.persistent_keepalive
       nic_attach           = var.nic_attach
-      images = local.images_override
-      ospf = local.ospf_values
+      images               = local.images_override
+      ospf                 = local.ospf_values
       transit = {
         interfaces = var.transit.interfaces
       }

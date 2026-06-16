@@ -27,12 +27,20 @@ variables {
   frr_image       = "ghcr.io/alexmkx/garuda-frr-sidecar:latest"
 }
 
-run "chart_path_resolves_to_bundled_chart" {
+run "chart_resolves_from_oci" {
   command = plan
 
   assert {
-    condition     = endswith(helm_release.wireguard.chart, "/charts/wireguard")
-    error_message = "helm_release.chart must point at $${path.module}/charts/wireguard"
+    condition     = helm_release.wireguard.repository == "oci://ghcr.io/garuda-tunnel/charts"
+    error_message = "helm_release.repository must be the garuda OCI charts registry"
+  }
+  assert {
+    condition     = helm_release.wireguard.chart == "wireguard"
+    error_message = "helm_release.chart must be the OCI chart name 'wireguard'"
+  }
+  assert {
+    condition     = can(regex("^\\d+\\.\\d+\\.\\d+$", helm_release.wireguard.version))
+    error_message = "helm_release.version must be an exact semver from var.chart_version"
   }
 }
 
