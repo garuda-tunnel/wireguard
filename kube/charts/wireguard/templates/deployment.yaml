@@ -57,7 +57,7 @@ spec:
           # below and brings up the WireGuard interface. Variable names
           # match modules/wireguard/kube/image/entrypoint.sh so the
           # image contract is identical to the Compose stack.
-          image: {{ .Values.images.wireguard | quote }}
+          image: {{ .Values.images.wireguard | default (printf "ghcr.io/garuda-tunnel/garuda-wireguard:%s" .Chart.Version) | quote }}
           imagePullPolicy: IfNotPresent
           {{- if .Values.config.listen_port }}
           ports:

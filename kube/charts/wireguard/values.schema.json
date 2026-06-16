@@ -39,7 +39,6 @@
     "images": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["wireguard"],
       "properties": {
         "wireguard": { "type": "string" },
         "frr":       { "type": "string" }
