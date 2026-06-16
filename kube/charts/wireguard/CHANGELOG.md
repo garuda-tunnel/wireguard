@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/garuda-tunnel/wireguard-internal/compare/v0.3.0...v0.4.0) (2026-06-16)
+
+
+### Features
+
+* **chart:** bump frr-sidecar dependency 0.1.0 -&gt; 0.2.0 ([bc5ffb9](https://github.com/garuda-tunnel/wireguard-internal/commit/bc5ffb9e49c48659e0de4bc6ddcdc8c8ed9341ce))
+* **chart:** bump frr-sidecar dependency 0.1.0 → 0.2.0 ([cfc1662](https://github.com/garuda-tunnel/wireguard-internal/commit/cfc1662d60c9207feea5d0dca7219cb054c273b7))
+
 ## [0.3.0](https://github.com/garuda-tunnel/wireguard-internal/compare/v0.2.0...v0.3.0) (2026-06-16)
 
 
