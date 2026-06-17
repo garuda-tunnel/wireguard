@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/garuda-tunnel/wireguard-internal/compare/v0.4.0...v0.5.0) (2026-06-17)
+
+
+### Features
+
+* **wireguard:** emit app.kubernetes.io/part-of=garuda pod label ([5ff4ed2](https://github.com/garuda-tunnel/wireguard-internal/commit/5ff4ed2e3af0b2dc23d007cd2e7cca00b751b1c9))
+* **wireguard:** emit app.kubernetes.io/part-of=garuda pod label ([1fe90c2](https://github.com/garuda-tunnel/wireguard-internal/commit/1fe90c2bcb84c23d3f0d764d7314f94259ea0603))
+
 ## [0.4.0](https://github.com/garuda-tunnel/wireguard-internal/compare/v0.3.0...v0.4.0) (2026-06-16)
 
 
