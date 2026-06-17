@@ -9,6 +9,7 @@ metadata:
     app.kubernetes.io/name: wireguard
     app.kubernetes.io/instance: "wg-pt"
     app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: garuda
     garuda.managed-by: helm
 type: Opaque
 stringData:
@@ -58,6 +59,7 @@ metadata:
     app.kubernetes.io/name: wireguard
     app.kubernetes.io/instance: "wg-pt"
     app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: garuda
     garuda.managed-by: helm
 spec:
   # Recreate: WireGuard holds exclusive kernel resources (wg interface,
@@ -79,6 +81,7 @@ spec:
         app.kubernetes.io/name: wireguard
         app.kubernetes.io/instance: "wg-pt"
         app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: garuda
         garuda.managed-by: helm
       annotations:
         k8s.v1.cni.cncf.io/networks: "backbone@backbone,border@border"
