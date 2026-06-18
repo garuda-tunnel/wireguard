@@ -20,20 +20,32 @@ set -e
 
 TABLE_NAME="border_${WG_INTERFACE}"
 
-# --- Block 1: nft table base + MSS clamp (always) ---
+# --- Block 1: nft table base + MSS clamp (always, bidirectional) ---
 nft add table inet "$TABLE_NAME" 2>/dev/null || true
 nft delete table inet "$TABLE_NAME" 2>/dev/null || true
+
+# WG_MTU: prefer an explicit env override (useful in tests / operator tuning),
+# fall back to the sysfs value set by the kernel when the WireGuard interface
+# is brought up (per Task 0 DQ5: sysfs is the canonical source, zero chart
+# plumbing required).
+WG_MTU="${WG_MTU:-$(cat /sys/class/net/"${WG_INTERFACE}"/mtu 2>/dev/null || echo 0)}"
+WG_MSS=$(( WG_MTU > 40 ? WG_MTU - 40 : 0 ))
 
 nft -f - <<EOF
 table inet ${TABLE_NAME} {
     chain forward {
         type filter hook forward priority mangle; policy accept;
         oifname "${WG_INTERFACE}" tcp flags syn tcp option maxseg size set rt mtu
+$( [ "$WG_MSS" -gt 0 ] && printf '        iifname "%s" tcp flags syn tcp option maxseg size set %s\n' "${WG_INTERFACE}" "${WG_MSS}" )
     }
 }
 EOF
 
-echo "[POSTUP] MSS clamp applied: oifname ${WG_INTERFACE} in table ${TABLE_NAME}"
+if [ "$WG_MSS" -gt 0 ]; then
+    echo "[POSTUP] MSS clamp applied: oifname rt-mtu + iifname ${WG_MSS} in table ${TABLE_NAME}"
+else
+    echo "[POSTUP] MSS clamp applied: oifname rt-mtu only (skipping iifname: WG_MTU unavailable)"
+fi
 
 # --- Block 2: gate on border attach ---
 if ! echo "${WG_NIC_ATTACH:-[]}" | grep -q '"border"'; then
