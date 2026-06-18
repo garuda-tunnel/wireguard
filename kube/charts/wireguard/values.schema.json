@@ -44,6 +44,18 @@
         "frr":       { "type": "string" }
       }
     },
+    "wireguard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mtu": {
+          "type": ["integer", "null"],
+          "minimum": 1280,
+          "maximum": 1420,
+          "description": "WireGuard interface MTU. null = kernel default. Band 1280..1420 covers known safe values for nested tunnels and PPPoE underlays."
+        }
+      }
+    },
     "ospf": {
       "type": ["object", "null"],
       "additionalProperties": false,

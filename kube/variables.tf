@@ -146,3 +146,14 @@ variable "chart_version" {
     error_message = "chart_version must be exact semver MAJOR.MINOR.PATCH (no range, no 'latest')."
   }
 }
+
+variable "mtu" {
+  description = "WireGuard interface MTU. null = kernel default (no WG_MTU env set). Set per-stand to align both sides: 1330 for wg-usa/wg-mexico hub side, 1370 for wg-hub-ros hub side. Band 1280..1420."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.mtu == null || (var.mtu >= 1280 && var.mtu <= 1420)
+    error_message = "mtu must be null or in the range 1280..1420."
+  }
+}

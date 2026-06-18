@@ -102,6 +102,33 @@ run "contract_routeros_interface_uses_tunnel_name" {
   }
 }
 
+run "mtu_alignment_default" {
+  # Verifies that the RouterOS WireGuard interface MTU comes from var.mtu
+  # and defaults to 1370 to match the hub side (removing the 1420/1370 asymmetry).
+  # The routeros provider stores mtu as a string attribute, so compare with tostring.
+  command = plan
+
+  assert {
+    condition     = routeros_interface_wireguard.this.mtu == tostring(1370)
+    error_message = "RouterOS WG interface MTU must default to 1370 (hub side; removes 1420/1370 asymmetry)"
+  }
+}
+
+run "mtu_alignment_override" {
+  # Verifies that var.mtu is honoured when the caller provides a custom value.
+  # The routeros provider stores mtu as a string attribute, so compare with tostring.
+  command = plan
+
+  variables {
+    mtu = 1280
+  }
+
+  assert {
+    condition     = routeros_interface_wireguard.this.mtu == tostring(var.mtu)
+    error_message = "RouterOS WG interface MTU must equal var.mtu when explicitly set"
+  }
+}
+
 run "contract_endpoint_sync_reconciles_multiple_resolved_ips" {
   # The endpoint hostname can resolve to several A records (e.g. CDN /
   # rolling deploys / stale Cloudflare entries).  Each resolved IP needs

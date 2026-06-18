@@ -69,3 +69,8 @@ variable "ospf_area" {
   default     = "0.0.0.0"
 }
 
+variable "mtu" {
+  description = "WireGuard interface MTU on the RouterOS side. Default 1370 aligns with the hub side to remove the 1420/1370 asymmetry (PPPoE-1492 underlay minus WG 60-byte overhead). Min-safe for wg-hub-ros; set 1280 for nested tunnels (e.g. wg-firezone)."
+  type        = number
+  default     = 1370
+}

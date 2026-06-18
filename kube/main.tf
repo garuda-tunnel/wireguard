@@ -11,6 +11,8 @@ locals {
     var.wireguard_image == "" ? {} : { wireguard = var.wireguard_image },
     var.frr_image == "" ? {} : { frr = var.frr_image },
   )
+  # wireguard_values carries only the non-null fields so downstream chart defaults are preserved.
+  wireguard_values = var.mtu == null ? {} : { mtu = var.mtu }
 }
 
 resource "helm_release" "wireguard" {
@@ -40,6 +42,7 @@ resource "helm_release" "wireguard" {
       nic_attach           = var.nic_attach
       images               = local.images_override
       ospf                 = local.ospf_values
+      wireguard            = local.wireguard_values
       transit = {
         interfaces = var.transit.interfaces
       }

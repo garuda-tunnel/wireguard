@@ -8,6 +8,7 @@ resource "routeros_interface_wireguard" "this" {
   name        = var.config.tunnel_name
   listen_port = var.config.listen_port
   private_key = var.config.private_key
+  mtu         = var.mtu
   comment     = var.config.tunnel_name
 }
 

@@ -185,6 +185,31 @@ run "empty_image_vars_omit_images_keys" {
   }
 }
 
+run "mtu_null_omits_wireguard_mtu_from_values" {
+  # When var.mtu is null (default), wireguard.mtu must not appear in the rendered
+  # helm values so the chart uses its own default (null = kernel default).
+  command = plan
+
+  assert {
+    condition     = strcontains(helm_release.wireguard.values[0], "\"wireguard\": {}")
+    error_message = "with null mtu, wireguard values must be an empty map (no mtu key)"
+  }
+}
+
+run "mtu_set_propagates_to_wireguard_values" {
+  # When var.mtu is set, it must appear as wireguard.mtu in the rendered helm values.
+  command = plan
+
+  variables {
+    mtu = 1330
+  }
+
+  assert {
+    condition     = strcontains(helm_release.wireguard.values[0], "\"mtu\": 1330")
+    error_message = "var.mtu must propagate to wireguard.mtu in helm values"
+  }
+}
+
 run "nonempty_wireguard_image_overrides" {
   command = plan
 

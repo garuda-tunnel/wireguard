@@ -22,6 +22,12 @@ nic_attach:
 images:
   wireguard: ""
   frr: ""
+# wireguard: optional interface-level tuning.
+# mtu: WireGuard interface MTU passed as WG_MTU to the container.
+#   null (default) lets the image use its kernel default.
+#   Set to 1330 for wg-usa/wg-mexico hub side; 1370 is the wg-hub-ros hub side.
+wireguard:
+  mtu: null
 # ospf is null when omitted; FRR sidecar is then NOT rendered.
 ospf: null
 # transit.interfaces is the CSV ingress list for transit_watcher running
