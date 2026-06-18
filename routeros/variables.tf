@@ -68,3 +68,4 @@ variable "ospf_area" {
   type        = string
   default     = "0.0.0.0"
 }
+

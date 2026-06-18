@@ -155,3 +155,38 @@ run "contract_endpoint_sync_reconciles_multiple_resolved_ips" {
     error_message = "endpoint sync script must use lookup-only-in-table action to prevent WG self-loop when bypass table is empty"
   }
 }
+
+run "mss_clamp_bidirectional" {
+  # Verifies that BOTH the forward (out_interface) and return (in_interface)
+  # change-mss clamp-to-pmtu mangle rules are present. The forward rule closes
+  # GAP-3 LAN→hub direction; the return rule closes the hub→LAN return direction
+  # which the existing single-direction rule missed.
+  command = plan
+
+  assert {
+    condition     = routeros_ip_firewall_mangle.this.out_interface == var.config.tunnel_name
+    error_message = "forward (out_interface) clamp must remain on the tunnel interface"
+  }
+
+  assert {
+    condition     = routeros_ip_firewall_mangle.this.new_mss == "clamp-to-pmtu"
+    error_message = "forward clamp must use clamp-to-pmtu"
+  }
+
+  assert {
+    condition     = routeros_ip_firewall_mangle.this_return.in_interface == var.config.tunnel_name
+    error_message = "return (in_interface) clamp must be present on the tunnel interface"
+  }
+
+  assert {
+    condition     = routeros_ip_firewall_mangle.this_return.new_mss == "clamp-to-pmtu"
+    error_message = "return clamp must use clamp-to-pmtu"
+  }
+
+  assert {
+    condition     = routeros_ip_firewall_mangle.this_return.chain == "forward"
+    error_message = "return clamp must be in the forward chain"
+  }
+}
+
+

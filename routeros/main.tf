@@ -47,6 +47,17 @@ resource "routeros_ip_firewall_mangle" "this" {
   comment       = "garuda-${var.config.tunnel_name}"
 }
 
+resource "routeros_ip_firewall_mangle" "this_return" {
+  chain        = "forward"
+  action       = "change-mss"
+  new_mss      = "clamp-to-pmtu"
+  passthrough  = true
+  tcp_flags    = "syn"
+  protocol     = "tcp"
+  in_interface = routeros_interface_wireguard.this.name
+  comment      = "garuda-${var.config.tunnel_name}-return"
+}
+
 resource "routeros_interface_list_member" "wireguard_lan" {
   interface = routeros_interface_wireguard.this.name
   list      = var.interface_list
