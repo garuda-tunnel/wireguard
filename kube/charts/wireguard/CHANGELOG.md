@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/garuda-tunnel/wireguard-internal/compare/v0.5.0...v0.6.0) (2026-06-18)
+
+
+### Features
+
+* **wireguard:** align WG tunnel MTU (MTU/MSS Task 6) ([8d39e22](https://github.com/garuda-tunnel/wireguard-internal/commit/8d39e22de7581572f8800d92ce3f76d0a73b9251))
+* **wireguard:** align WG tunnel MTU across both sides ([a8702ef](https://github.com/garuda-tunnel/wireguard-internal/commit/a8702ef702fcc0c125f43c412a7496835112357c))
+
 ## [0.5.0](https://github.com/garuda-tunnel/wireguard-internal/compare/v0.4.0...v0.5.0) (2026-06-17)
 
 
