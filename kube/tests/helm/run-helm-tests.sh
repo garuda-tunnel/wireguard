@@ -38,19 +38,40 @@ for scenario in default with-ospf with-transit-provider; do
   echo "ok: ${scenario}"
 done
 
-# MTU alignment: wireguard.mtu must render as WG_MTU env var in the deployment.
+# MTU alignment: mtuPolicy.* must render as WG_EFFECTIVE_MTU/WG_FIXED_MSS/WG_MSS_CLAMP_ENABLED
+# env vars in the deployment. No legacy WG_MTU.
 mtu_scenario="mtu-1330"
 helm lint "${CHART_DIR}" -f "${SCRIPT_DIR}/values-${mtu_scenario}.yaml"
 mtu_out="$(helm template wg "${CHART_DIR}" --namespace garuda -f "${SCRIPT_DIR}/values-${mtu_scenario}.yaml")"
 mtu_golden="${GOLDEN_DIR}/${mtu_scenario}.yaml"
 
-if ! echo "${mtu_out}" | grep -q 'WG_MTU'; then
-  echo "FAIL: WG_MTU env var missing from deployment when wireguard.mtu is set" >&2
+if ! echo "${mtu_out}" | grep -q 'WG_EFFECTIVE_MTU'; then
+  echo "FAIL: WG_EFFECTIVE_MTU env var missing from deployment when mtuPolicy.effectiveMtu is set" >&2
+  exit 1
+fi
+
+if ! echo "${mtu_out}" | grep -q 'WG_FIXED_MSS'; then
+  echo "FAIL: WG_FIXED_MSS env var missing from deployment when mtuPolicy.fixedMss is set" >&2
+  exit 1
+fi
+
+if ! echo "${mtu_out}" | grep -q 'WG_MSS_CLAMP_ENABLED'; then
+  echo "FAIL: WG_MSS_CLAMP_ENABLED env var missing from deployment when mtuPolicy.mssClampEnabled is set" >&2
   exit 1
 fi
 
 if ! echo "${mtu_out}" | grep -q '"1330"'; then
-  echo "FAIL: MTU value 1330 not found in deployment env" >&2
+  echo "FAIL: effectiveMtu value 1330 not found in deployment env" >&2
+  exit 1
+fi
+
+if ! echo "${mtu_out}" | grep -q '"1290"'; then
+  echo "FAIL: fixedMss value 1290 not found in deployment env" >&2
+  exit 1
+fi
+
+if echo "${mtu_out}" | grep -q 'WG_MTU'; then
+  echo "FAIL: legacy WG_MTU must NOT appear in deployment (replaced by WG_EFFECTIVE_MTU)" >&2
   exit 1
 fi
 
@@ -66,12 +87,15 @@ fi
 
 echo "ok: ${mtu_scenario}"
 
-# MTU alignment: default golden must NOT include WG_MTU (wireguard.mtu: null,
-# so the image uses its kernel default, preserving existing deployments).
+# mtuPolicy env vars must appear in default deployment too (always unconditional).
 default_out="$(helm template wg "${CHART_DIR}" --namespace garuda -f "${SCRIPT_DIR}/values-default.yaml")"
+if ! echo "${default_out}" | grep -q 'WG_EFFECTIVE_MTU'; then
+  echo "FAIL: WG_EFFECTIVE_MTU must appear in default deployment (mtuPolicy always rendered)" >&2
+  exit 1
+fi
 if echo "${default_out}" | grep -q 'WG_MTU'; then
-  echo "FAIL: WG_MTU must NOT appear in default deployment (wireguard.mtu not set)" >&2
+  echo "FAIL: legacy WG_MTU must NOT appear in default deployment" >&2
   exit 1
 fi
 
-echo "ok: default-no-mtu"
+echo "ok: default-mtu-policy"

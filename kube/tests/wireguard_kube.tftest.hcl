@@ -25,6 +25,9 @@ variables {
   allowed_nets    = ["0.0.0.0/0"]
   wireguard_image = "ghcr.io/alexmkx/garuda-wireguard:latest"
   frr_image       = "ghcr.io/alexmkx/garuda-frr-sidecar:latest"
+  mtu_policy = {
+    site_mtu = 1330
+  }
 }
 
 run "chart_resolves_from_oci" {
@@ -185,29 +188,97 @@ run "empty_image_vars_omit_images_keys" {
   }
 }
 
-run "mtu_null_omits_wireguard_mtu_from_values" {
-  # When var.mtu is null (default), wireguard.mtu must not appear in the rendered
-  # helm values so the chart uses its own default (null = kernel default).
-  command = plan
-
-  assert {
-    condition     = strcontains(helm_release.wireguard.values[0], "\"wireguard\": {}")
-    error_message = "with null mtu, wireguard values must be an empty map (no mtu key)"
-  }
-}
-
-run "mtu_set_propagates_to_wireguard_values" {
-  # When var.mtu is set, it must appear as wireguard.mtu in the rendered helm values.
+run "mtu_policy_propagates_to_mtu_policy_helm_values" {
+  # mtu_policy.site_mtu must derive effective_mtu, fixed_mss, mss_clamp_enabled
+  # and appear under mtuPolicy.* in helm values. No legacy wireguard.mtu key.
   command = plan
 
   variables {
-    mtu = 1330
+    mtu_policy = {
+      site_mtu = 1330
+    }
   }
 
   assert {
-    condition     = strcontains(helm_release.wireguard.values[0], "\"mtu\": 1330")
-    error_message = "var.mtu must propagate to wireguard.mtu in helm values"
+    condition     = strcontains(helm_release.wireguard.values[0], "\"effectiveMtu\": 1330")
+    error_message = "mtu_policy.site_mtu must propagate effectiveMtu=1330 under mtuPolicy in helm values"
   }
+
+  assert {
+    condition     = strcontains(helm_release.wireguard.values[0], "\"fixedMss\": 1290")
+    error_message = "mtu_policy.site_mtu=1330 must derive fixedMss=1290 under mtuPolicy in helm values"
+  }
+
+  assert {
+    condition     = strcontains(helm_release.wireguard.values[0], "\"mssClampEnabled\": true")
+    error_message = "default mss_clamp_enabled=true must appear under mtuPolicy in helm values"
+  }
+
+  assert {
+    condition     = !strcontains(helm_release.wireguard.values[0], "\"mtu\":")
+    error_message = "legacy wireguard.mtu key must NOT be present in rendered helm values"
+  }
+}
+
+run "mtu_policy_site_mtu_derives_values" {
+  command = plan
+
+  variables {
+    mtu_policy = {
+      site_mtu = 1330
+    }
+  }
+
+  assert {
+    condition     = local.effective_mtu == 1330
+    error_message = "site_mtu must derive effective_mtu 1330"
+  }
+
+  assert {
+    condition     = local.fixed_mss == 1290
+    error_message = "site_mtu 1330 must derive fixed_mss 1290"
+  }
+}
+
+run "mtu_policy_explicit_override_honors_values" {
+  # explicit override: effective_mtu=1380, fixed_mss=1340 must pass through unchanged.
+  command = plan
+
+  variables {
+    mtu_policy = {
+      effective_mtu = 1380
+      fixed_mss     = 1340
+    }
+  }
+
+  assert {
+    condition     = local.effective_mtu == 1380
+    error_message = "explicit effective_mtu=1380 must be honored"
+  }
+
+  assert {
+    condition     = local.fixed_mss == 1340
+    error_message = "explicit fixed_mss=1340 must be honored"
+  }
+
+  assert {
+    condition     = strcontains(helm_release.wireguard.values[0], "\"effectiveMtu\": 1380")
+    error_message = "explicit effective_mtu=1380 must appear as mtuPolicy.effectiveMtu in helm values"
+  }
+}
+
+run "mtu_policy_reject_xor_violation" {
+  # Passing both site_mtu and effective_mtu violates the XOR constraint.
+  command = plan
+
+  variables {
+    mtu_policy = {
+      site_mtu      = 1330
+      effective_mtu = 1280
+    }
+  }
+
+  expect_failures = [var.mtu_policy]
 }
 
 run "nonempty_wireguard_image_overrides" {

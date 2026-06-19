@@ -22,12 +22,14 @@ nic_attach:
 images:
   wireguard: ""
   frr: ""
-# wireguard: optional interface-level tuning.
-# mtu: WireGuard interface MTU passed as WG_MTU to the container.
-#   null (default) lets the image use its kernel default.
-#   Set to 1330 for wg-usa/wg-mexico hub side; 1370 is the wg-hub-ros hub side.
-wireguard:
-  mtu: null
+# mtuPolicy: MTU and MSS clamp policy resolved by Terraform from var.mtu_policy.
+# These values are always injected by the Terraform module and rendered
+# unconditionally as WG_EFFECTIVE_MTU, WG_FIXED_MSS, WG_MSS_CLAMP_ENABLED env vars.
+# Defaults here cover direct helm install / chart tests only.
+mtuPolicy:
+  effectiveMtu: 1330
+  fixedMss: 1290
+  mssClampEnabled: true
 # ospf is null when omitted; FRR sidecar is then NOT rendered.
 ospf: null
 # transit.interfaces is the CSV ingress list for transit_watcher running

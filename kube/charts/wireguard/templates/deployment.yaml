@@ -92,10 +92,12 @@ spec:
             - name: WG_LISTEN_PORT
               value: {{ . | quote }}
             {{- end }}
-            {{- with .Values.wireguard.mtu }}
-            - name: WG_MTU
-              value: {{ . | quote }}
-            {{- end }}
+            - name: WG_EFFECTIVE_MTU
+              value: {{ .Values.mtuPolicy.effectiveMtu | quote }}
+            - name: WG_FIXED_MSS
+              value: {{ .Values.mtuPolicy.fixedMss | quote }}
+            - name: WG_MSS_CLAMP_ENABLED
+              value: {{ .Values.mtuPolicy.mssClampEnabled | quote }}
             # WG_NIC_ATTACH advertises to the wireguard postup.sh script which
             # secondary interfaces are attached. The Compose stack mapped
             # this to docker bridge networks; the k3s deployment maps it

@@ -1,4 +1,11 @@
 locals {
+  effective_mtu = var.mtu_policy.site_mtu != null ? var.mtu_policy.site_mtu : var.mtu_policy.effective_mtu
+  fixed_mss     = var.mtu_policy.site_mtu != null ? var.mtu_policy.site_mtu - 40 : var.mtu_policy.fixed_mss
+  # mss_clamp_enabled is resolved here from the policy object (default true via
+  # optional(bool, true) in the type). Task 2 wires it to WG_MSS_CLAMP_ENABLED
+  # in the chart env to gate postup.sh's inbound fixed-MSS nft rule.
+  mss_clamp_enabled = var.mtu_policy.mss_clamp_enabled
+
   ospf_values = var.ospf == null ? null : {
     router_id          = var.ospf.router_id
     interfaces         = var.ospf.interfaces
@@ -11,8 +18,11 @@ locals {
     var.wireguard_image == "" ? {} : { wireguard = var.wireguard_image },
     var.frr_image == "" ? {} : { frr = var.frr_image },
   )
-  # wireguard_values carries only the non-null fields so downstream chart defaults are preserved.
-  wireguard_values = var.mtu == null ? {} : { mtu = var.mtu }
+  mtu_policy_values = {
+    effectiveMtu    = local.effective_mtu
+    fixedMss        = local.fixed_mss
+    mssClampEnabled = local.mss_clamp_enabled
+  }
 }
 
 resource "helm_release" "wireguard" {
@@ -42,7 +52,7 @@ resource "helm_release" "wireguard" {
       nic_attach           = var.nic_attach
       images               = local.images_override
       ospf                 = local.ospf_values
-      wireguard            = local.wireguard_values
+      mtuPolicy            = local.mtu_policy_values
       transit = {
         interfaces = var.transit.interfaces
       }

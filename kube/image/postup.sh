@@ -20,31 +20,37 @@ set -e
 
 TABLE_NAME="border_${WG_INTERFACE}"
 
-# --- Block 1: nft table base + MSS clamp (always, bidirectional) ---
+# --- Block 1: nft table base + MSS clamp ---
+# Outbound (oifname) clamp-to-route-PMTU is unconditional: path-MTU through any
+# WG tunnel is smaller than the negotiated TCP MSS by default; without clamping
+# large segments black-hole.
+# Inbound (iifname) fixed-MSS clamp is gated on WG_MSS_CLAMP_ENABLED. Both
+# values (WG_FIXED_MSS, WG_MSS_CLAMP_ENABLED) are always injected by the chart.
 nft add table inet "$TABLE_NAME" 2>/dev/null || true
 nft delete table inet "$TABLE_NAME" 2>/dev/null || true
 
-# WG_MTU: prefer an explicit env override (useful in tests / operator tuning),
-# fall back to the sysfs value set by the kernel when the WireGuard interface
-# is brought up (per Task 0 DQ5: sysfs is the canonical source, zero chart
-# plumbing required).
-WG_MTU="${WG_MTU:-$(cat /sys/class/net/"${WG_INTERFACE}"/mtu 2>/dev/null || echo 0)}"
-WG_MSS=$(( WG_MTU > 40 ? WG_MTU - 40 : 0 ))
+# Normalise WG_MSS_CLAMP_ENABLED: treat any value that is not "true" (case-insensitive)
+# as disabled. The Helm template always injects the var so the unset case is not
+# expected in production, but guard it for safety.
+_clamp_enabled=0
+case "${WG_MSS_CLAMP_ENABLED:-false}" in
+    [Tt][Rr][Uu][Ee]) _clamp_enabled=1 ;;
+esac
 
 nft -f - <<EOF
 table inet ${TABLE_NAME} {
     chain forward {
         type filter hook forward priority mangle; policy accept;
         oifname "${WG_INTERFACE}" tcp flags syn tcp option maxseg size set rt mtu
-$( [ "$WG_MSS" -gt 0 ] && printf '        iifname "%s" tcp flags syn tcp option maxseg size set %s\n' "${WG_INTERFACE}" "${WG_MSS}" )
+$( [ "$_clamp_enabled" -eq 1 ] && printf '        iifname "%s" tcp flags syn tcp option maxseg size set %s\n' "${WG_INTERFACE}" "${WG_FIXED_MSS}" )
     }
 }
 EOF
 
-if [ "$WG_MSS" -gt 0 ]; then
-    echo "[POSTUP] MSS clamp applied: oifname rt-mtu + iifname ${WG_MSS} in table ${TABLE_NAME}"
+if [ "$_clamp_enabled" -eq 1 ]; then
+    echo "[POSTUP] MSS clamp applied: oifname rt-mtu + iifname ${WG_FIXED_MSS} in table ${TABLE_NAME}"
 else
-    echo "[POSTUP] MSS clamp applied: oifname rt-mtu only (skipping iifname: WG_MTU unavailable)"
+    echo "[POSTUP] MSS clamp applied: oifname rt-mtu only (WG_MSS_CLAMP_ENABLED not true)"
 fi
 
 # --- Block 2: gate on border attach ---

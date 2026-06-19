@@ -139,7 +139,7 @@ variable "frr_image" {
 variable "chart_version" {
   description = "Pinned OCI chart version (exact semver). Bumped in lockstep with Chart.yaml by release-please."
   type        = string
-  default     = "0.6.0" # x-release-please-version
+  default     = "1.0.0" # x-release-please-version
 
   validation {
     condition     = can(regex("^\\d+\\.\\d+\\.\\d+$", var.chart_version))
@@ -147,13 +147,55 @@ variable "chart_version" {
   }
 }
 
-variable "mtu" {
-  description = "WireGuard interface MTU. null = kernel default (no WG_MTU env set). Set per-stand to align both sides: 1330 for wg-usa/wg-mexico hub side, 1370 for wg-hub-ros hub side. Band 1280..1420."
-  type        = number
-  default     = null
+variable "mtu_policy" {
+  description = "Site MTU/MSS policy. site_mtu derives effective_mtu and fixed_mss; otherwise effective_mtu and fixed_mss must be supplied explicitly."
+  nullable    = false
+
+  type = object({
+    site_mtu          = optional(number)
+    effective_mtu     = optional(number)
+    fixed_mss         = optional(number)
+    mss_clamp_enabled = optional(bool, true)
+  })
 
   validation {
-    condition     = var.mtu == null || (var.mtu >= 1280 && var.mtu <= 1420)
-    error_message = "mtu must be null or in the range 1280..1420."
+    condition = (
+      (var.mtu_policy.site_mtu != null && var.mtu_policy.effective_mtu == null && var.mtu_policy.fixed_mss == null) ||
+      (var.mtu_policy.site_mtu == null && var.mtu_policy.effective_mtu != null && var.mtu_policy.fixed_mss != null)
+    )
+    error_message = "Set either mtu_policy.site_mtu or both mtu_policy.effective_mtu and mtu_policy.fixed_mss."
+  }
+
+  validation {
+    condition = (
+      var.mtu_policy.site_mtu == null ||
+      (var.mtu_policy.site_mtu >= 1280 && var.mtu_policy.site_mtu <= 1420)
+    )
+    error_message = "mtu_policy.site_mtu must be between 1280 and 1420."
+  }
+
+  validation {
+    condition = (
+      var.mtu_policy.effective_mtu == null ||
+      (var.mtu_policy.effective_mtu >= 1280 && var.mtu_policy.effective_mtu <= 1420)
+    )
+    error_message = "mtu_policy.effective_mtu must be between 1280 and 1420."
+  }
+
+  validation {
+    condition = (
+      var.mtu_policy.fixed_mss == null ||
+      (var.mtu_policy.fixed_mss >= 536 && var.mtu_policy.fixed_mss <= 1460)
+    )
+    error_message = "mtu_policy.fixed_mss must be between 536 and 1460."
+  }
+
+  validation {
+    condition = (
+      var.mtu_policy.fixed_mss == null ||
+      var.mtu_policy.effective_mtu == null ||
+      var.mtu_policy.fixed_mss <= var.mtu_policy.effective_mtu - 40
+    )
+    error_message = "mtu_policy.fixed_mss must be less than or equal to mtu_policy.effective_mtu - 40."
   }
 }

@@ -23,6 +23,10 @@ nic_attach:
 images:
   wireguard: ghcr.io/garuda-tunnel/garuda-wireguard:latest
   frr: ghcr.io/garuda-tunnel/garuda-frr-sidecar:latest
+mtuPolicy:
+  effectiveMtu: 1330
+  fixedMss: 1290
+  mssClampEnabled: true
 ospf:
   router_id: 10.130.30.1
   interfaces:

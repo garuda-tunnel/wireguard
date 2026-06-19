@@ -24,5 +24,7 @@ images:
   wireguard: ghcr.io/garuda-tunnel/garuda-wireguard:latest
   frr: ""
 ospf: null
-wireguard:
-  mtu: 1330
+mtuPolicy:
+  effectiveMtu: 1330
+  fixedMss: 1290
+  mssClampEnabled: true

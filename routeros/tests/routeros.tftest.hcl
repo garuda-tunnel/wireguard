@@ -39,6 +39,9 @@ variables {
   interface_list = "LAN"
   router_id      = "192.0.2.2"
   ospf_area      = "0.0.0.0"
+  mtu_policy = {
+    site_mtu = 1370
+  }
 }
 
 run "contract_routeros_tunnel_stack" {
@@ -103,29 +106,31 @@ run "contract_routeros_interface_uses_tunnel_name" {
 }
 
 run "mtu_alignment_default" {
-  # Verifies that the RouterOS WireGuard interface MTU comes from var.mtu
-  # and defaults to 1370 to match the hub side (removing the 1420/1370 asymmetry).
+  # Verifies that the RouterOS WireGuard interface MTU is derived from mtu_policy.
+  # The default fixture sets site_mtu = 1370 matching the old RouterOS hub default.
   # The routeros provider stores mtu as a string attribute, so compare with tostring.
   command = plan
 
   assert {
     condition     = routeros_interface_wireguard.this.mtu == tostring(1370)
-    error_message = "RouterOS WG interface MTU must default to 1370 (hub side; removes 1420/1370 asymmetry)"
+    error_message = "RouterOS WG interface MTU must come from mtu_policy derived effective_mtu"
   }
 }
 
 run "mtu_alignment_override" {
-  # Verifies that var.mtu is honoured when the caller provides a custom value.
+  # Verifies that mtu_policy.site_mtu is honoured when the caller provides a custom value.
   # The routeros provider stores mtu as a string attribute, so compare with tostring.
   command = plan
 
   variables {
-    mtu = 1280
+    mtu_policy = {
+      site_mtu = 1280
+    }
   }
 
   assert {
-    condition     = routeros_interface_wireguard.this.mtu == tostring(var.mtu)
-    error_message = "RouterOS WG interface MTU must equal var.mtu when explicitly set"
+    condition     = routeros_interface_wireguard.this.mtu == tostring(1280)
+    error_message = "RouterOS WG interface MTU must equal mtu_policy derived effective_mtu when explicitly set"
   }
 }
 
@@ -181,6 +186,64 @@ run "contract_endpoint_sync_reconciles_multiple_resolved_ips" {
     )
     error_message = "endpoint sync script must use lookup-only-in-table action to prevent WG self-loop when bypass table is empty"
   }
+}
+
+run "mtu_policy_site_mtu_derives_values" {
+  command = plan
+
+  variables {
+    mtu_policy = {
+      site_mtu = 1330
+    }
+  }
+
+  assert {
+    condition     = local.effective_mtu == 1330
+    error_message = "site_mtu must derive effective_mtu 1330"
+  }
+
+  assert {
+    condition     = routeros_interface_wireguard.this.mtu == tostring(1330)
+    error_message = "site_mtu 1330 must render RouterOS WireGuard interface MTU as 1330"
+  }
+}
+
+run "mtu_policy_explicit_override_honors_values" {
+  # explicit override: effective_mtu=1380, fixed_mss=1340. RouterOS uses only
+  # effective_mtu for interface MTU; fixed_mss/mss_clamp_enabled are accepted
+  # by the uniform policy contract but RouterOS applies clamp-to-pmtu instead.
+  command = plan
+
+  variables {
+    mtu_policy = {
+      effective_mtu = 1380
+      fixed_mss     = 1340
+    }
+  }
+
+  assert {
+    condition     = local.effective_mtu == 1380
+    error_message = "explicit effective_mtu=1380 must be honored"
+  }
+
+  assert {
+    condition     = routeros_interface_wireguard.this.mtu == tostring(1380)
+    error_message = "explicit effective_mtu=1380 must render RouterOS WireGuard interface MTU as 1380"
+  }
+}
+
+run "mtu_policy_reject_xor_violation" {
+  # Passing both site_mtu and effective_mtu violates the XOR constraint.
+  command = plan
+
+  variables {
+    mtu_policy = {
+      site_mtu      = 1330
+      effective_mtu = 1280
+    }
+  }
+
+  expect_failures = [var.mtu_policy]
 }
 
 run "mss_clamp_bidirectional" {

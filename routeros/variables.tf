@@ -69,8 +69,55 @@ variable "ospf_area" {
   default     = "0.0.0.0"
 }
 
-variable "mtu" {
-  description = "WireGuard interface MTU on the RouterOS side. Default 1370 aligns with the hub side to remove the 1420/1370 asymmetry (PPPoE-1492 underlay minus WG 60-byte overhead). Min-safe for wg-hub-ros; set 1280 for nested tunnels (e.g. wg-firezone)."
-  type        = number
-  default     = 1370
+variable "mtu_policy" {
+  description = "Site MTU/MSS policy. site_mtu derives effective_mtu and fixed_mss; otherwise effective_mtu and fixed_mss must be supplied explicitly."
+  nullable    = false
+
+  type = object({
+    site_mtu          = optional(number)
+    effective_mtu     = optional(number)
+    fixed_mss         = optional(number)
+    mss_clamp_enabled = optional(bool, true)
+  })
+
+  validation {
+    condition = (
+      (var.mtu_policy.site_mtu != null && var.mtu_policy.effective_mtu == null && var.mtu_policy.fixed_mss == null) ||
+      (var.mtu_policy.site_mtu == null && var.mtu_policy.effective_mtu != null && var.mtu_policy.fixed_mss != null)
+    )
+    error_message = "Set either mtu_policy.site_mtu or both mtu_policy.effective_mtu and mtu_policy.fixed_mss."
+  }
+
+  validation {
+    condition = (
+      var.mtu_policy.site_mtu == null ||
+      (var.mtu_policy.site_mtu >= 1280 && var.mtu_policy.site_mtu <= 1420)
+    )
+    error_message = "mtu_policy.site_mtu must be between 1280 and 1420."
+  }
+
+  validation {
+    condition = (
+      var.mtu_policy.effective_mtu == null ||
+      (var.mtu_policy.effective_mtu >= 1280 && var.mtu_policy.effective_mtu <= 1420)
+    )
+    error_message = "mtu_policy.effective_mtu must be between 1280 and 1420."
+  }
+
+  validation {
+    condition = (
+      var.mtu_policy.fixed_mss == null ||
+      (var.mtu_policy.fixed_mss >= 536 && var.mtu_policy.fixed_mss <= 1460)
+    )
+    error_message = "mtu_policy.fixed_mss must be between 536 and 1460."
+  }
+
+  validation {
+    condition = (
+      var.mtu_policy.fixed_mss == null ||
+      var.mtu_policy.effective_mtu == null ||
+      var.mtu_policy.fixed_mss <= var.mtu_policy.effective_mtu - 40
+    )
+    error_message = "mtu_policy.fixed_mss must be less than or equal to mtu_policy.effective_mtu - 40."
+  }
 }

@@ -40,8 +40,8 @@ EOF
 if [ -n "${WG_LISTEN_PORT:-}" ]; then
     printf 'ListenPort = %s\n' "${WG_LISTEN_PORT}" >> "$conf"
 fi
-if [ -n "${WG_MTU:-}" ]; then
-    printf 'MTU = %s\n' "${WG_MTU}" >> "$conf"
+if [ -n "${WG_EFFECTIVE_MTU:-}" ]; then
+    printf 'MTU = %s\n' "${WG_EFFECTIVE_MTU}" >> "$conf"
 fi
 if [ -n "${WG_POST_UP:-}" ]; then
     printf 'PostUp = %s\n' "${WG_POST_UP}" >> "$conf"

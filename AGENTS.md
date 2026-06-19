@@ -8,6 +8,13 @@ Security and contribution rules for garuda-wireguard.
 - Never commit or use domains other than well-known examples or `example.net`.
 - Never commit secrets, tokens, private keys, or customer data.
 
+**Exception — pinning-portal anchor:** The literal `1.1.1.1:1111` is permitted in
+**comments** that document the pinning-portal anchor address (e.g. in
+`kube/image/postup.sh`). This address is an intentionally stable, operator-facing
+anchor used to explain why backbone source IPs must propagate untouched through the
+internal mesh. It is not a live DNS dependency and must never appear in executable
+code paths (routing rules, nftables rules, configuration values, etc.).
+
 ## FRR sidecar reuse — architectural rule
 
 This module consumes the `frr-sidecar` library Helm chart from OCI

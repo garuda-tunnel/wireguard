@@ -99,8 +99,12 @@ spec:
               value: "0.0.0.0/0"
             - name: WG_PEER_PERSISTENT_KEEPALIVE
               value: "25"
-            - name: WG_MTU
+            - name: WG_EFFECTIVE_MTU
               value: "1330"
+            - name: WG_FIXED_MSS
+              value: "1290"
+            - name: WG_MSS_CLAMP_ENABLED
+              value: "true"
             # WG_NIC_ATTACH advertises to the wireguard postup.sh script which
             # secondary interfaces are attached. The Compose stack mapped
             # this to docker bridge networks; the k3s deployment maps it
