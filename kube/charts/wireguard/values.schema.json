@@ -6,7 +6,8 @@
   "properties": {
     "namespace": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" },
     "name": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" },
-    "frr-sidecar": { "type": "object" },
+    "podLabels":      { "type": "object", "additionalProperties": { "type": "string" } },
+    "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
     "config": {
       "type": "object",
       "additionalProperties": false,
@@ -40,8 +41,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "wireguard": { "type": "string" },
-        "frr":       { "type": "string" }
+        "wireguard": { "type": "string" }
       }
     },
     "mtuPolicy": {

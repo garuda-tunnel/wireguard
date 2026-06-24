@@ -51,8 +51,6 @@ spec:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/part-of: garuda
         garuda.managed-by: helm
-      annotations:
-        k8s.v1.cni.cncf.io/networks: "backbone@backbone,border@border"
     spec:
       restartPolicy: Always
       # Match the existing docker-compose stack's sysctls byte-for-byte.

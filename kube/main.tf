@@ -16,13 +16,22 @@ locals {
   }
   images_override = merge(
     var.wireguard_image == "" ? {} : { wireguard = var.wireguard_image },
-    var.frr_image == "" ? {} : { frr = var.frr_image },
   )
   mtu_policy_values = {
     effectiveMtu    = local.effective_mtu
     fixedMss        = local.fixed_mss
     mssClampEnabled = local.mss_clamp_enabled
   }
+}
+
+resource "kubernetes_config_map" "garuda_extra" {
+  for_each = var.configmaps
+  metadata {
+    name      = each.key
+    namespace = var.namespace
+  }
+  # each.value is already a { filename => content } map (Decision #11).
+  data = each.value
 }
 
 resource "helm_release" "wireguard" {
@@ -53,9 +62,13 @@ resource "helm_release" "wireguard" {
       images               = local.images_override
       ospf                 = local.ospf_values
       mtuPolicy            = local.mtu_policy_values
+      podLabels            = var.labels
+      podAnnotations       = var.annotations
       transit = {
         interfaces = var.transit.interfaces
       }
     })
   ]
+
+  depends_on = [kubernetes_config_map.garuda_extra]
 }

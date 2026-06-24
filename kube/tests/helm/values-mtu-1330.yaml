@@ -22,7 +22,6 @@ nic_attach:
   - border
 images:
   wireguard: ghcr.io/garuda-tunnel/garuda-wireguard:latest
-  frr: ""
 ospf: null
 mtuPolicy:
   effectiveMtu: 1330

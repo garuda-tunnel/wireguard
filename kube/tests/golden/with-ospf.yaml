@@ -17,34 +17,6 @@ stringData:
   WG_PEER_PUBLIC_KEY: "stubpublickey"
 
 ---
-# Source: wireguard/templates/configmap-frr.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: "wg-pt-frr"
-  namespace: "garuda"
-data:
-  frr.conf: |
-    frr defaults traditional
-    log file /tmp/frr.log
-    zebra nexthop proto only
-    interface wg-pt
-     ip ospf area 0.0.0.0
-    ip ospf hello-interval 5
-     ip ospf dead-interval 15
-     ip ospf mtu-ignore
-    router ospf
-     ospf router-id 10.130.30.1
-    redistribute connected
-    
-     default-information originate
-  daemons: |
-    zebra=yes
-    ospfd=yes
-  vtysh.conf: |
-    service integrated-vtysh-config
-
----
 # Source: wireguard/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -79,9 +51,7 @@ spec:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/part-of: garuda
         garuda.managed-by: helm
-      annotations:
-        k8s.v1.cni.cncf.io/networks: "backbone@backbone,border@border"
-        checksum/frr-config: 0a5f9495fd8b5ac6252d77fe92f3c68273012405b020ceb6c1cc5acd366cd6fb
+        net.garuda-tunnel/profile: ospf-router
     spec:
       restartPolicy: Always
       # Match the existing docker-compose stack's sysctls byte-for-byte.
@@ -146,17 +116,3 @@ spec:
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]
-        - name: frr-sidecar
-          image: "ghcr.io/garuda-tunnel/garuda-frr-sidecar:latest"
-          imagePullPolicy: IfNotPresent
-          volumeMounts:
-            - name: frr-source
-              mountPath: /etc/frr-source
-              readOnly: true
-          securityContext:
-            capabilities:
-              add: ["NET_ADMIN", "NET_RAW", "SYS_ADMIN"]
-      volumes:
-        - name: frr-source
-          configMap:
-            name: wg-pt-frr

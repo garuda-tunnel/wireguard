@@ -11,13 +11,5 @@ app.kubernetes.io/name: wireguard
 app.kubernetes.io/instance: {{ .Values.name | quote }}
 {{- end -}}
 
-{{/* Comma-separated Multus annotation: name@iface, name@iface. */}}
-{{- define "wireguard.networks" -}}
-{{- $items := list -}}
-{{- range .Values.nic_attach -}}
-{{- $items = append $items (printf "%s@%s" . .) -}}
-{{- end -}}
-{{- join "," $items -}}
-{{- end -}}
 
 

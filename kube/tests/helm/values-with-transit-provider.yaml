@@ -22,16 +22,14 @@ nic_attach:
   - border
 images:
   wireguard: ghcr.io/garuda-tunnel/garuda-wireguard:latest
-  frr: ghcr.io/garuda-tunnel/garuda-frr-sidecar:latest
 mtuPolicy:
   effectiveMtu: 1330
   fixedMss: 1290
   mssClampEnabled: true
-ospf:
-  router_id: 10.130.30.1
-  interfaces:
-    - wg-pt
-  passive_interfaces: []
-  default_originate: true
-  redistribute: []
-  transit_provider: true
+ospf: null
+# podAnnotations tests the vanilla guest contract: MAP injects the Multus
+# network annotation via podAnnotations; the chart renders it verbatim.
+# This scenario was formerly "with-transit-provider" (frr/transit behavior
+# that is now MAP-owned). Repurposed to lock podAnnotations passthrough.
+podAnnotations:
+  k8s.v1.cni.cncf.io/networks: "backbone@backbone,border@border"

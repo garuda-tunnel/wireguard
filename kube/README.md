@@ -1,12 +1,10 @@
 # wireguard/kube
 
 Deploys one WireGuard endpoint as a single-replica Kubernetes Deployment.
-When `ospf` is set, an FRR sidecar runs in the same pod's network
-namespace and speaks OSPF on the interfaces declared in `ospf.interfaces`.
-
-This module mirrors the variable shape of `modules/wireguard/linux`. The
-OSPF intent that used to be expressed via Docker labels read by
-`ospf_injector` is expressed here as a structured `ospf` object input.
+The pod is a **vanilla guest**: it accepts `annotations`, `labels`, and
+`configmaps` map inputs and has zero garuda knowledge. Garuda's MAP
+(Kyverno MutatingPolicy) injects the frr-sidecar, Multus network
+annotations, and sysctls at admission time.
 
 ## Inputs
 
@@ -19,22 +17,22 @@ OSPF intent that used to be expressed via Docker labels read by
 | `allowed_nets`         | yes      | List of `AllowedIPs` entries. |
 | `table`                | no       | Default `"off"`. Same semantics as `modules/wireguard/linux`. |
 | `persistent_keepalive` | no       | Default `25`. |
-| `ospf`                 | no       | Structured OSPF intent. When `null`, no FRR sidecar is rendered. |
-| `nic_attach`           | no       | Default `["backbone", "border"]`. Becomes the Multus annotation. |
-| `wireguard_image`      | yes      | Image reference for the `wg` container. |
-| `frr_image`            | when `ospf != null` | Image reference for the `frr-sidecar` container. |
+| `ospf`                 | no       | Accepted for backward compat; now inert in the chart (frr-sidecar is MAP-injected). |
+| `nic_attach`           | no       | Default `["backbone", "border"]`. Passed to `WG_NIC_ATTACH` env var in the pod. |
+| `wireguard_image`      | no       | Image reference for the `wg` container. Empty → chart's pinned digest. |
+| `annotations`          | no       | Pod-template annotations passed as `podAnnotations` to the chart (e.g. Multus network annotation injected by MAP). |
+| `labels`               | no       | Pod-template labels passed as `podLabels` to the chart (e.g. garuda profile label injected by MAP). |
+| `configmaps`           | no       | Extra ConfigMaps to create before pod admission (e.g. FRR snippets for MAP-injected sidecar). |
+| `mtu_policy`           | yes      | MTU/MSS policy object. See below. |
 
-### `ospf` object
+### `mtu_policy` object
 
-| Field                | Required | Description |
-|----------------------|----------|-------------|
-| `router_id`          | yes      | IPv4-formatted OSPF router-id. |
-| `area`               | no       | Default `"0.0.0.0"`. |
-| `interfaces`         | yes      | Interfaces participating in OSPF; typically includes `config.kernel_ifname`. |
-| `passive_interfaces` | no       | Marked `ip ospf passive`. |
-| `default_originate`  | no       | Default `false`. |
-| `redistribute`       | no       | Subset of `["connected", "kernel", "static"]`. |
-| `extra_frr_conf`     | no       | Free-form FRR config appended verbatim. |
+| Field              | Required | Description |
+|--------------------|----------|-------------|
+| `site_mtu`         | XOR      | Site MTU; derives `effective_mtu = site_mtu` and `fixed_mss = site_mtu - 40`. |
+| `effective_mtu`    | XOR      | Explicit effective MTU (use with `fixed_mss`). |
+| `fixed_mss`        | XOR      | Explicit fixed MSS clamp (use with `effective_mtu`). |
+| `mss_clamp_enabled`| no       | Default `true`. Gates the inbound fixed-MSS nft rule in `postup.sh`. |
 
 ## Outputs
 
@@ -42,7 +40,7 @@ OSPF intent that used to be expressed via Docker labels read by
 |-------------------|-------------|
 | `deployment_name` | Equals `var.name`. |
 
-## Providers
+## Example
 
 ```hcl
 module "wireguard_kube_pt" {
@@ -51,17 +49,16 @@ module "wireguard_kube_pt" {
     helm       = helm.pt
     kubernetes = kubernetes.pt
   }
-  namespace        = module.garuda_k8s_pt.namespace
-  name             = "wg-pt"
-  config           = local.wg_pt.config
-  peer             = local.wg_pt.peer
-  allowed_nets     = local.wg_pt.allowed_nets
-  wireguard_image  = "ghcr.io/garuda-tunnel/garuda-wireguard:latest"
-  frr_image        = "ghcr.io/garuda-tunnel/garuda-frr-sidecar:latest"
-  ospf = {
-    router_id  = "10.130.30.1"
-    interfaces = ["wg-pt"]
-  }
+  namespace    = module.garuda_k8s_pt.namespace
+  name         = "wg-pt"
+  config       = local.wg_pt.config
+  peer         = local.wg_pt.peer
+  allowed_nets = local.wg_pt.allowed_nets
+  mtu_policy   = { site_mtu = 1330 }
+  # annotations and labels are injected by the garuda_guest module:
+  annotations  = module.garuda_guest_pt.annotations
+  labels       = module.garuda_guest_pt.labels
+  configmaps   = module.garuda_guest_pt.configmaps
 }
 ```
 
@@ -69,8 +66,10 @@ module "wireguard_kube_pt" {
 
 - No `hostNetwork`. The pod uses the pod network namespace and attaches
   `backbone`/`border` as Multus secondary interfaces.
-- No Docker socket access, no `ospf_injector`. The FRR sidecar is rendered
-  as a literal container in the same pod.
+- No FRR sidecar rendering. The frr-sidecar is injected by Garuda's MAP
+  (Kyverno MutatingPolicy) at admission time.
+- No hardcoded Multus annotation. The `k8s.v1.cni.cncf.io/networks`
+  annotation is passed in via `var.annotations` (from `garuda_guest`).
 - No cluster-side CNI install. See `modules/garuda_k8s` for Multus and
   Whereabouts installation.
 - No multi-replica scaling. WireGuard private state is single-instance by

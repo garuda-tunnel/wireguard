@@ -22,11 +22,13 @@ spec:
     metadata:
       labels:
         {{- include "wireguard.labels" . | nindent 8 }}
-      annotations:
-        k8s.v1.cni.cncf.io/networks: {{ include "wireguard.networks" . | quote }}
-        {{- if .Values.ospf }}
-        checksum/frr-config: {{ include "frr-sidecar.configmap" (dict "name" .Values.name "namespace" .Values.namespace "ospf" .Values.ospf) | sha256sum }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       restartPolicy: Always
       # Match the existing docker-compose stack's sysctls byte-for-byte.
@@ -42,14 +44,6 @@ spec:
             value: "1"
           - name: net.ipv4.conf.all.rp_filter
             value: "2"
-      {{- $initFrr := include "frr-sidecar.initContainer" (dict
-            "image" .Values.images.frr
-            "ospf"  .Values.ospf
-          ) -}}
-      {{- if $initFrr }}
-      initContainers:
-        {{- $initFrr | nindent 8 }}
-      {{- end }}
       containers:
         - name: wg
           # Container entrypoint is owned by the image
@@ -110,16 +104,4 @@ spec:
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]
-        {{- $frr := include "frr-sidecar.container" (dict
-              "image" .Values.images.frr
-              "ospf" .Values.ospf
-              "transit" .Values.transit
-            ) -}}
-        {{- if $frr }}{{ $frr | nindent 8 }}{{- end }}
-      {{- if .Values.ospf }}
-      volumes:
-        {{- include "frr-sidecar.volume" (dict
-              "name" .Values.name
-              "ospf" .Values.ospf
-            ) | nindent 8 }}
-      {{- end }}
+

@@ -22,11 +22,12 @@ nic_attach:
   - border
 images:
   wireguard: ghcr.io/garuda-tunnel/garuda-wireguard:latest
-  frr: ghcr.io/garuda-tunnel/garuda-frr-sidecar:latest
 mtuPolicy:
   effectiveMtu: 1330
   fixedMss: 1290
   mssClampEnabled: true
+# ospf is kept inert (schema still accepts it; frr-sidecar is now MAP-owned).
+# This scenario tests podLabels passthrough — the new vanilla guest contract.
 ospf:
   router_id: 10.130.30.1
   interfaces:
@@ -35,3 +36,5 @@ ospf:
   default_originate: true
   redistribute:
     - connected
+podLabels:
+  net.garuda-tunnel/profile: ospf-router

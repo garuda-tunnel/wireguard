@@ -24,7 +24,6 @@ variables {
 
   allowed_nets    = ["0.0.0.0/0"]
   wireguard_image = "ghcr.io/alexmkx/garuda-wireguard:latest"
-  frr_image       = "ghcr.io/alexmkx/garuda-frr-sidecar:latest"
   mtu_policy = {
     site_mtu = 1330
   }
@@ -171,20 +170,21 @@ run "invalid_ospf_redistribute_value_rejected" {
   expect_failures = [var.ospf]
 }
 
-run "empty_image_vars_omit_images_keys" {
+run "empty_wireguard_image_omits_images_key" {
+  # With wireguard_image empty, local.images_override == {} so the rendered
+  # helm values carry an empty images map. Helm deep-merges this no-op overlay
+  # onto the chart's values.yaml, preserving the chart-pinned digest.
+  # frr_image is kept inert (Phase 4+5 Decision #5) and does not contribute
+  # any key to images regardless of its value.
   command = plan
 
   variables {
     wireguard_image = ""
-    frr_image       = ""
   }
 
-  # With both image vars empty, local.images_override == {} so the rendered
-  # helm values carry an empty images map. Helm then deep-merges this no-op
-  # overlay onto the chart's values.yaml, preserving the chart-pinned digest.
   assert {
     condition     = strcontains(helm_release.wireguard.values[0], "\"images\": {}")
-    error_message = "with empty image vars, rendered images must be an empty map so the chart's pinned digest wins"
+    error_message = "with empty wireguard_image, rendered images must be an empty map so the chart's pinned digest wins"
   }
 }
 
@@ -282,15 +282,15 @@ run "mtu_policy_reject_xor_violation" {
 }
 
 run "nonempty_wireguard_image_overrides" {
+  # A non-empty wireguard_image must flow into images.wireguard (overriding the
+  # chart default). images.frr is never emitted regardless of frr_image
+  # (Phase 4+5 Decision #5: frr-sidecar is MAP-owned, not chart-owned).
   command = plan
 
   variables {
     wireguard_image = "ghcr.io/garuda-tunnel/garuda-wireguard@sha256:1111111111111111111111111111111111111111111111111111111111111111"
-    frr_image       = ""
   }
 
-  # A non-empty wireguard_image must flow into images.wireguard (overriding the
-  # chart default); frr stays omitted because frr_image is empty.
   assert {
     condition     = strcontains(helm_release.wireguard.values[0], "\"wireguard\": \"ghcr.io/garuda-tunnel/garuda-wireguard@sha256:1111111111111111111111111111111111111111111111111111111111111111\"")
     error_message = "non-empty wireguard_image must appear under images.wireguard"
@@ -298,6 +298,32 @@ run "nonempty_wireguard_image_overrides" {
 
   assert {
     condition     = !strcontains(helm_release.wireguard.values[0], "\"frr\":")
-    error_message = "with empty frr_image, the frr key must be omitted from images override"
+    error_message = "images.frr must never appear in rendered helm values (frr-sidecar is MAP-owned)"
+  }
+}
+
+run "passthrough_annotations_labels_configmaps" {
+  command = plan
+  variables {
+    annotations = { "net.garuda-tunnel/router-id" = "10.130.30.22" }
+    labels      = { "net.garuda-tunnel/profile" = "ospf-router" }
+    configmaps  = { "wg-hub-ros-frr-extra" = { "extra.conf" = "ip forwarding" } }
+  }
+  # Assert on the injected VALUE, not just the key name (a `podAnnotations: {}`
+  # default would pass a bare key-name substring and give false confidence).
+  # yamlencode emits quoted JSON-style YAML ("key": "value") — match that format.
+  assert {
+    condition     = strcontains(helm_release.wireguard.values[0], "\"net.garuda-tunnel/router-id\": \"10.130.30.22\"")
+    error_message = "podAnnotations must carry the injected router-id value"
+  }
+  assert {
+    condition     = strcontains(helm_release.wireguard.values[0], "\"net.garuda-tunnel/profile\": \"ospf-router\"")
+    error_message = "podLabels must carry the injected profile label"
+  }
+  # Count is robust under bare mock_provider (metadata[0].name may be a synthetic
+  # placeholder; the instance-key set is what we assert).
+  assert {
+    condition     = length(kubernetes_config_map.garuda_extra) == 1 && contains(keys(kubernetes_config_map.garuda_extra), "wg-hub-ros-frr-extra")
+    error_message = "one ConfigMap must be planned per configmaps entry, keyed by CM name"
   }
 }

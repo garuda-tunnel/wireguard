@@ -67,10 +67,9 @@ variable "persistent_keepalive" {
 
 variable "ospf" {
   description = <<EOT
-Structured OSPF intent. When null, no FRR sidecar is rendered and the
-Deployment runs WireGuard only. Interfaces participating in OSPF normally
-include config.kernel_ifname so the hub-edge adjacency is established
-over the WireGuard tunnel.
+Structured OSPF intent (accepted for backward compat; now inert in the
+chart — frr-sidecar is MAP-injected by Kyverno). The ospf field is still
+accepted by the values schema and may be used by the MAP profile lookup.
 EOT
   type = object({
     router_id          = string
@@ -102,14 +101,10 @@ EOT
 }
 
 variable "transit" {
-  description = <<EOT
-Transit-watcher inputs for the bundled FRR sidecar. When `interfaces`
-is non-empty, the chart exports PBR_TRANSIT_TAG and PBR_TRANSIT_INTERFACES,
-which the sidecar entrypoint uses to start transit_watcher.py — matching
-the FRR sidecar OSPF contract.
-The OSPF tag is hardcoded to TRANSIT_TAG=201 in the chart helper to match
-the frr-sidecar library constants without exposing extra surface here.
-EOT
+  # DEPRECATED: kept inert per Phase 4+5 Decision #5; transit-watcher is now
+  # MAP-injected (Kyverno MutatingPolicy), not chart-rendered. This variable
+  # is accepted for backward compat and removed in follow-up cleanup.
+  description = "Inert — accepted for backward compat only. Transit-watcher is now MAP-injected."
   type = object({
     interfaces = list(string)
   })
@@ -131,7 +126,10 @@ variable "wireguard_image" {
 }
 
 variable "frr_image" {
-  description = "Image reference for the frr-sidecar container. Required when ospf != null; ignored otherwise."
+  # DEPRECATED: kept inert per Phase 4+5 Decision #5; frr-sidecar is now
+  # MAP-injected (Kyverno MutatingPolicy), not chart-rendered. This variable
+  # is accepted for backward compat and removed in follow-up cleanup.
+  description = "Inert — accepted for backward compat only. frr-sidecar is now MAP-injected."
   type        = string
   default     = ""
 }
@@ -145,6 +143,24 @@ variable "chart_version" {
     condition     = can(regex("^\\d+\\.\\d+\\.\\d+$", var.chart_version))
     error_message = "chart_version must be exact semver MAJOR.MINOR.PATCH (no range, no 'latest')."
   }
+}
+
+variable "annotations" {
+  description = "Pod-template annotations (spec.template.metadata.annotations). From garuda_guest.annotations."
+  type        = map(string)
+  default     = {}
+}
+
+variable "labels" {
+  description = "Pod-template labels (spec.template.metadata.labels). From garuda_guest.labels."
+  type        = map(string)
+  default     = {}
+}
+
+variable "configmaps" {
+  description = "Extra ConfigMaps to create before pod admission (Tier 2/3 FRR snippets). From garuda_guest.configmaps."
+  type        = map(map(string))
+  default     = {}
 }
 
 variable "mtu_policy" {
