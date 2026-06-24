@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/garuda-tunnel/wireguard-internal/compare/v1.1.0...v1.2.0) (2026-06-24)
+
+
+### Features
+
+* vanilla-guest passthrough + drop frr-sidecar (Phase 4+5) ([8703d7f](https://github.com/garuda-tunnel/wireguard-internal/commit/8703d7ff157cda802fb7eec37f9fe52e9b7cf57f))
+* **wireguard:** vanilla guest chart — podLabels/podAnnotations, drop frr-sidecar dep + networks helper ([f434771](https://github.com/garuda-tunnel/wireguard-internal/commit/f434771914cda38044bc50c8e3a712c937504b8e))
+
 ## [1.1.0](https://github.com/garuda-tunnel/wireguard-internal/compare/v1.0.0...v1.1.0) (2026-06-19)
 
 
