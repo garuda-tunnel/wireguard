@@ -9,8 +9,8 @@ variable "hostname" {
   type        = string
 }
 
-variable "config" {
-  description = "Canonical tunnel config object for the RouterOS endpoint (from wireguard/tunnel output)."
+variable "self" {
+  description = "Canonical tunnel config object for the local RouterOS endpoint (from wireguard/tunnel output)."
   type = object({
     tunnel_name   = string
     kernel_ifname = string
@@ -23,13 +23,12 @@ variable "config" {
   })
 }
 
-variable "peer" {
-  description = "Canonical tunnel config object for the remote endpoint (from wireguard/tunnel output)."
+variable "remote" {
+  description = "Canonical tunnel config object for the remote endpoint (from wireguard/tunnel output). private_key is intentionally NOT in the type."
   type = object({
     tunnel_name   = string
     kernel_ifname = string
     address       = string
-    private_key   = string
     public_key    = string
     preshared_key = string
     listen_port   = number
@@ -37,8 +36,8 @@ variable "peer" {
   })
 
   validation {
-    condition     = try(trimspace(var.peer.endpoint_host) != "", false)
-    error_message = "RouterOS tunnel peers must define peer.endpoint_host for endpoint bypass."
+    condition     = try(trimspace(var.remote.endpoint_host) != "", false)
+    error_message = "RouterOS tunnel remotes must define remote.endpoint_host for endpoint bypass."
   }
 }
 
@@ -58,7 +57,7 @@ variable "interface_list" {
   default     = "LAN"
 }
 
-variable "router_id" {
+variable "ospf_router_id" {
   description = "Unique RouterOS OSPF router ID for this tunnel-specific instance."
   type        = string
 }

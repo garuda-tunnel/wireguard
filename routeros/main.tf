@@ -15,36 +15,36 @@ locals {
 }
 
 resource "routeros_interface_wireguard" "this" {
-  name        = var.config.tunnel_name
-  listen_port = var.config.listen_port
-  private_key = var.config.private_key
+  name        = var.self.tunnel_name
+  listen_port = var.self.listen_port
+  private_key = var.self.private_key
   mtu         = local.effective_mtu
-  comment     = var.config.tunnel_name
+  comment     = var.self.tunnel_name
 }
 
 resource "routeros_ip_address" "this" {
-  address   = "${split("/", var.config.address)[0]}/${split("/", var.subnet)[1]}"
+  address   = "${split("/", var.self.address)[0]}/${split("/", var.subnet)[1]}"
   interface = routeros_interface_wireguard.this.name
-  comment   = var.config.tunnel_name
+  comment   = var.self.tunnel_name
 }
 
 resource "routeros_interface_wireguard_peer" "this" {
   interface            = routeros_interface_wireguard.this.name
-  public_key           = var.peer.public_key
-  allowed_address      = concat(["${split("/", var.peer.address)[0]}/32"], var.allowed_nets)
-  endpoint_address     = var.peer.endpoint_host
-  endpoint_port        = var.peer.listen_port
-  preshared_key        = var.config.preshared_key
+  public_key           = var.remote.public_key
+  allowed_address      = concat(["${split("/", var.remote.address)[0]}/32"], var.allowed_nets)
+  endpoint_address     = var.remote.endpoint_host
+  endpoint_port        = var.remote.listen_port
+  preshared_key        = var.self.preshared_key
   persistent_keepalive = "25s"
-  comment              = "${var.config.tunnel_name}:${var.hostname}"
+  comment              = "${var.self.tunnel_name}:${var.hostname}"
 }
 
 resource "routeros_ip_firewall_filter" "wireguard_input" {
   action   = "accept"
   chain    = "input"
   protocol = "udp"
-  dst_port = tostring(var.config.listen_port)
-  comment  = "${var.config.tunnel_name}-input"
+  dst_port = tostring(var.self.listen_port)
+  comment  = "${var.self.tunnel_name}-input"
 }
 
 resource "routeros_ip_firewall_mangle" "this" {
@@ -55,7 +55,7 @@ resource "routeros_ip_firewall_mangle" "this" {
   tcp_flags     = "syn"
   protocol      = "tcp"
   out_interface = routeros_interface_wireguard.this.name
-  comment       = "garuda-${var.config.tunnel_name}"
+  comment       = "garuda-${var.self.tunnel_name}"
 }
 
 resource "routeros_ip_firewall_mangle" "this_return" {
@@ -66,11 +66,11 @@ resource "routeros_ip_firewall_mangle" "this_return" {
   tcp_flags    = "syn"
   protocol     = "tcp"
   in_interface = routeros_interface_wireguard.this.name
-  comment      = "garuda-${var.config.tunnel_name}-return"
+  comment      = "garuda-${var.self.tunnel_name}-return"
 }
 
 resource "routeros_interface_list_member" "wireguard_lan" {
   interface = routeros_interface_wireguard.this.name
   list      = var.interface_list
-  comment   = var.config.tunnel_name
+  comment   = var.self.tunnel_name
 }

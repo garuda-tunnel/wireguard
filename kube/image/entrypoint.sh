@@ -50,15 +50,17 @@ if [ -n "${WG_PRE_DOWN:-}" ]; then
     printf 'PreDown = %s\n' "${WG_PRE_DOWN}" >> "$conf"
 fi
 
-# Always inject postup/predown hooks.  The scripts no-op when
-# WG_NIC_ATTACH does not include "border": border-attached nodes get
-# NAT (oifname "border" masquerade) + RPDB via_tunnel; internal-mesh
-# nodes get only MSS clamping (preserves source IP through the
-# backbone for identity-aware features like the pinning portal at
-# 1.1.1.1:1111).  Operators deploying the role outside Garuda can
-# layer custom rules via WG_POST_UP (injected before this hook).
-printf 'PostUp = /usr/local/bin/postup.sh\n' >> "$conf"
-printf 'PreDown = /usr/local/bin/predown.sh\n' >> "$conf"
+# Always inject postup/predown hooks.  Border NAT (oifname "border"
+# masquerade) and RPDB via_tunnel are gated in postup.sh on live
+# interface presence (ip link show border); internal-mesh nodes get
+# only MSS clamping (preserves source IP through the backbone for
+# identity-aware features like the pinning portal at 1.1.1.1:1111).
+# Operators deploying the role outside Garuda can layer custom rules
+# via WG_POST_UP (injected before this hook).
+{
+    printf 'PostUp = /usr/local/bin/postup.sh\n'
+    printf 'PreDown = /usr/local/bin/predown.sh\n'
+} >> "$conf"
 
 # Append peer section
 cat >> "$conf" << EOF

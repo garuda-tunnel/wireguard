@@ -12,8 +12,8 @@ nft add table inet "$TABLE_NAME" 2>/dev/null || true
 nft delete table inet "$TABLE_NAME" 2>/dev/null || true
 echo "[PREDOWN] nft table ${TABLE_NAME} removed"
 
-# --- Block 2: gate on border attach ---
-if ! echo "${WG_NIC_ATTACH:-[]}" | grep -q '"border"'; then
+# --- Block 2: gate on border interface presence ---
+if ! ip link show border >/dev/null 2>&1; then
     exit 0
 fi
 

@@ -13,44 +13,37 @@ variable "name" {
   }
 }
 
-variable "config" {
-  description = "WireGuard local-peer configuration (matches modules/wireguard/linux config shape)."
+variable "self" {
+  description = "Local peer object (e.g. module.wireguard_tunnel[k].peers[\"edge\"]). Extra attributes are dropped."
+  sensitive   = true
   type = object({
     kernel_ifname = string
     private_key   = string
     address       = string
-    subnet        = string
     listen_port   = optional(number)
-    endpoint_host = optional(string)
   })
-  sensitive = true
 
   validation {
-    condition     = length(var.config.kernel_ifname) <= 15
-    error_message = "config.kernel_ifname must be at most 15 characters (Linux IFNAMSIZ-1)."
+    condition     = length(var.self.kernel_ifname) <= 15
+    error_message = "self.kernel_ifname must be at most 15 characters (Linux IFNAMSIZ-1)."
   }
 }
 
-variable "peer" {
-  description = <<EOT
-WireGuard remote-peer configuration. `endpoint_host` is the bare
-hostname or IP (without port); the chart joins it with
-`endpoint_listen_port` to produce the `host:port` form the image
-entrypoint expects.
-EOT
+variable "remote" {
+  description = "Remote peer object (e.g. module.wireguard_tunnel[k].peers[\"core\"]). private_key is intentionally NOT in the type."
+  sensitive   = true
   type = object({
-    public_key           = string
-    endpoint_host        = string
-    endpoint_listen_port = number
-    preshared_key        = optional(string)
-    address              = string
+    public_key    = string
+    endpoint_host = string
+    listen_port   = number
+    preshared_key = optional(string)
   })
-  sensitive = true
 }
 
 variable "allowed_nets" {
   description = "AllowedIPs entries for the peer (semantics identical to modules/wireguard/linux)."
   type        = list(string)
+  default     = ["0.0.0.0/0", "224.0.0.0/4"]
 }
 
 variable "table" {
@@ -65,71 +58,8 @@ variable "persistent_keepalive" {
   default     = 25
 }
 
-variable "ospf" {
-  description = <<EOT
-Structured OSPF intent (accepted for backward compat; now inert in the
-chart — frr-sidecar is MAP-injected by Kyverno). The ospf field is still
-accepted by the values schema and may be used by the MAP profile lookup.
-EOT
-  type = object({
-    router_id          = string
-    interfaces         = list(string)
-    passive_interfaces = optional(list(string), [])
-    default_originate  = optional(bool, false)
-    redistribute       = optional(list(string), [])
-    transit_provider   = optional(bool, false)
-  })
-  default = null
-
-  validation {
-    condition     = var.ospf == null || can(regex("^\\d+\\.\\d+\\.\\d+\\.\\d+$", var.ospf.router_id))
-    error_message = "ospf.router_id must be an IPv4-formatted string."
-  }
-
-  validation {
-    condition     = var.ospf == null || length(var.ospf.interfaces) > 0
-    error_message = "ospf.interfaces must be non-empty when ospf is set."
-  }
-
-  validation {
-    condition = (
-      var.ospf == null
-      || alltrue([for r in var.ospf.redistribute : contains(["connected", "kernel", "static"], r)])
-    )
-    error_message = "ospf.redistribute values must be subset of ['connected', 'kernel', 'static']."
-  }
-}
-
-variable "transit" {
-  # DEPRECATED: kept inert per Phase 4+5 Decision #5; transit-watcher is now
-  # MAP-injected (Kyverno MutatingPolicy), not chart-rendered. This variable
-  # is accepted for backward compat and removed in follow-up cleanup.
-  description = "Inert — accepted for backward compat only. Transit-watcher is now MAP-injected."
-  type = object({
-    interfaces = list(string)
-  })
-  default = {
-    interfaces = []
-  }
-}
-
-variable "nic_attach" {
-  description = "Secondary networks the pod attaches to via Multus. Becomes the k8s.v1.cni.cncf.io/networks annotation."
-  type        = list(string)
-  default     = ["backbone", "border"]
-}
-
 variable "wireguard_image" {
   description = "Image reference for the wg container. Empty ⇒ use the chart's pinned digest."
-  type        = string
-  default     = ""
-}
-
-variable "frr_image" {
-  # DEPRECATED: kept inert per Phase 4+5 Decision #5; frr-sidecar is now
-  # MAP-injected (Kyverno MutatingPolicy), not chart-rendered. This variable
-  # is accepted for backward compat and removed in follow-up cleanup.
-  description = "Inert — accepted for backward compat only. frr-sidecar is now MAP-injected."
   type        = string
   default     = ""
 }
@@ -137,7 +67,7 @@ variable "frr_image" {
 variable "chart_version" {
   description = "Pinned OCI chart version (exact semver). Bumped in lockstep with Chart.yaml by release-please."
   type        = string
-  default     = "1.2.0" # x-release-please-version
+  default     = "2.0.0" # x-release-please-version
 
   validation {
     condition     = can(regex("^\\d+\\.\\d+\\.\\d+$", var.chart_version))
@@ -166,6 +96,7 @@ variable "configmaps" {
 variable "mtu_policy" {
   description = "Site MTU/MSS policy. site_mtu derives effective_mtu and fixed_mss; otherwise effective_mtu and fixed_mss must be supplied explicitly."
   nullable    = false
+  default     = { site_mtu = 1330 }
 
   type = object({
     site_mtu          = optional(number)

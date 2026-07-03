@@ -15,30 +15,30 @@
 # update), the endpoint sync script re-runs immediately rather than
 # waiting up to one minute for the next scheduler tick.
 data "dns_a_record_set" "wg_endpoint" {
-  host = var.peer.endpoint_host
+  host = var.remote.endpoint_host
 }
 
 resource "routeros_routing_table" "wg_bypass" {
-  name    = "wg-bypass-${var.config.tunnel_name}"
+  name    = "wg-bypass-${var.self.tunnel_name}"
   fib     = true
-  comment = "WG endpoint bypass for ${var.config.tunnel_name}"
+  comment = "WG endpoint bypass for ${var.self.tunnel_name}"
 }
 
 resource "routeros_ip_firewall_addr_list" "endpoint" {
-  list    = "wg-endpoints-${var.config.tunnel_name}"
-  address = var.peer.endpoint_host
-  comment = var.config.tunnel_name
+  list    = "wg-endpoints-${var.self.tunnel_name}"
+  address = var.remote.endpoint_host
+  comment = var.self.tunnel_name
 }
 
 resource "routeros_system_script" "wg_endpoint_sync" {
-  name   = "wg-endpoint-sync-${var.config.tunnel_name}"
+  name   = "wg-endpoint-sync-${var.self.tunnel_name}"
   policy = ["read", "write", "test"]
   source = templatefile("${path.module}/templates/wg_endpoint_sync.rsc.tftpl", {
-    tunnel_name = var.config.tunnel_name
-    list_name   = "wg-endpoints-${var.config.tunnel_name}"
+    tunnel_name = var.self.tunnel_name
+    list_name   = "wg-endpoints-${var.self.tunnel_name}"
     table_name  = routeros_routing_table.wg_bypass.name
   })
-  comment = "Managed by wireguard/routeros for ${var.config.tunnel_name}"
+  comment = "Managed by wireguard/routeros for ${var.self.tunnel_name}"
 
   # Kick the sync script on apply whenever the resolved endpoint IP
   # set changes. On first apply the trigger transitions from "" to
@@ -49,9 +49,9 @@ resource "routeros_system_script" "wg_endpoint_sync" {
 }
 
 resource "routeros_system_scheduler" "wg_endpoint_sync" {
-  name     = "wg-endpoint-sync-${var.config.tunnel_name}"
+  name     = "wg-endpoint-sync-${var.self.tunnel_name}"
   interval = "1m"
   on_event = "/system script run ${routeros_system_script.wg_endpoint_sync.name}"
   policy   = ["read", "write", "test"]
-  comment  = "Managed by wireguard/routeros for ${var.config.tunnel_name}"
+  comment  = "Managed by wireguard/routeros for ${var.self.tunnel_name}"
 }

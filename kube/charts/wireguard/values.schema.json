@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft-07/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["namespace", "name", "config", "peer", "allowed_nets", "table", "persistent_keepalive", "nic_attach", "images", "mtuPolicy"],
+  "required": ["namespace", "name", "config", "peer", "allowed_nets", "table", "persistent_keepalive", "images", "mtuPolicy"],
   "properties": {
     "namespace": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" },
     "name": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" },
@@ -11,32 +11,28 @@
     "config": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kernel_ifname", "private_key", "address", "subnet"],
+      "required": ["kernel_ifname", "private_key", "address"],
       "properties": {
         "kernel_ifname": { "type": "string", "maxLength": 15 },
         "private_key":   { "type": "string" },
         "address":       { "type": "string" },
-        "subnet":        { "type": "string" },
-        "listen_port":   { "type": ["integer", "null"] },
-        "endpoint_host": { "type": ["string", "null"] }
+        "listen_port":   { "type": ["integer", "null"] }
       }
     },
     "peer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["public_key", "endpoint_host", "endpoint_listen_port", "address"],
+      "required": ["public_key", "endpoint_host", "listen_port"],
       "properties": {
-        "public_key":           { "type": "string" },
-        "endpoint_host":        { "type": "string" },
-        "endpoint_listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "preshared_key":        { "type": "string" },
-        "address":              { "type": "string" }
+        "public_key":    { "type": "string" },
+        "endpoint_host": { "type": "string" },
+        "listen_port":   { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "preshared_key": { "type": "string" }
       }
     },
     "allowed_nets":         { "type": "array", "items": { "type": "string" } },
     "table":                { "type": "string" },
     "persistent_keepalive": { "type": "integer", "minimum": 0 },
-    "nic_attach":           { "type": "array", "items": { "type": "string" } },
     "images": {
       "type": "object",
       "additionalProperties": false,
@@ -65,27 +61,6 @@
           "type": "boolean",
           "description": "When true, postup.sh installs the inbound fixed-MSS nft rule using fixedMss. The outbound route-PMTU rule is always active."
         }
-      }
-    },
-    "ospf": {
-      "type": ["object", "null"],
-      "additionalProperties": false,
-      "required": ["router_id", "interfaces"],
-      "properties": {
-        "router_id":          { "type": "string" },
-        "interfaces":         { "type": "array", "items": { "type": "string" }, "minItems": 1 },
-        "passive_interfaces": { "type": "array", "items": { "type": "string" } },
-        "default_originate":  { "type": "boolean" },
-        "redistribute":       { "type": "array", "items": { "enum": ["connected", "kernel", "static"] } },
-        "transit_provider":   { "type": "boolean" }
-      }
-    },
-    "transit": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["interfaces"],
-      "properties": {
-        "interfaces": { "type": "array", "items": { "type": "string" } }
       }
     }
   }

@@ -15,7 +15,7 @@ mock_provider "dns" {
 
 variables {
   hostname = "routeros-test"
-  config = {
+  self = {
     tunnel_name   = "test-env-wg-tik"
     kernel_ifname = "wg-tik"
     address       = "192.0.2.2/24"
@@ -24,11 +24,10 @@ variables {
     preshared_key = "aGVsbG8gd29ybGQ="
     listen_port   = 13231
   }
-  peer = {
+  remote = {
     tunnel_name   = "test-env-wg-tik"
     kernel_ifname = "wg-tik"
     address       = "192.0.2.1/24"
-    private_key   = "aGVsbG8gd29ybGQ="
     public_key    = "aGVsbG8gd29ybGQ="
     preshared_key = "aGVsbG8gd29ybGQ="
     listen_port   = 55825
@@ -37,7 +36,7 @@ variables {
   subnet         = "192.0.2.0/24"
   allowed_nets   = ["0.0.0.0/0", "224.0.0.0/4"]
   interface_list = "LAN"
-  router_id      = "192.0.2.2"
+  ospf_router_id = "192.0.2.2"
   ospf_area      = "0.0.0.0"
   mtu_policy = {
     site_mtu = 1370
@@ -78,11 +77,28 @@ run "contract_routeros_tunnel_stack" {
   }
 }
 
-run "contract_requires_peer_endpoint_host" {
+run "contract_requires_remote_endpoint_host" {
   command = plan
 
   variables {
-    peer = {
+    remote = {
+      tunnel_name   = "test-env-wg-tik"
+      kernel_ifname = "wg-tik"
+      address       = "192.0.2.1/24"
+      public_key    = "aGVsbG8gd29ybGQ="
+      preshared_key = "aGVsbG8gd29ybGQ="
+      listen_port   = 55825
+    }
+  }
+
+  expect_failures = [var.remote]
+}
+
+run "remote_drops_private_key_but_accepts_full_peer" {
+  command = plan
+
+  variables {
+    remote = {
       tunnel_name   = "test-env-wg-tik"
       kernel_ifname = "wg-tik"
       address       = "192.0.2.1/24"
@@ -90,10 +106,21 @@ run "contract_requires_peer_endpoint_host" {
       public_key    = "aGVsbG8gd29ybGQ="
       preshared_key = "aGVsbG8gd29ybGQ="
       listen_port   = 55825
+      endpoint_host = "vpn.example.net"
     }
   }
 
-  expect_failures = [var.peer]
+  # Passing a whole peer that HAS private_key SUCCEEDS: OpenTofu drops the
+  # extra attribute (remote's type has no private_key). The PSK the module
+  # uses comes from self, so the peer resource's preshared_key is self's.
+  assert {
+    condition     = routeros_interface_wireguard_peer.this.preshared_key == var.self.preshared_key
+    error_message = "routeros must read the symmetric PSK from self, not remote"
+  }
+  assert {
+    condition     = routeros_interface_wireguard_peer.this.public_key == var.remote.public_key
+    error_message = "routeros peer public_key must come from remote"
+  }
 }
 
 run "contract_routeros_interface_uses_tunnel_name" {
@@ -254,7 +281,7 @@ run "mss_clamp_bidirectional" {
   command = plan
 
   assert {
-    condition     = routeros_ip_firewall_mangle.this.out_interface == var.config.tunnel_name
+    condition     = routeros_ip_firewall_mangle.this.out_interface == var.self.tunnel_name
     error_message = "forward (out_interface) clamp must remain on the tunnel interface"
   }
 
@@ -264,7 +291,7 @@ run "mss_clamp_bidirectional" {
   }
 
   assert {
-    condition     = routeros_ip_firewall_mangle.this_return.in_interface == var.config.tunnel_name
+    condition     = routeros_ip_firewall_mangle.this_return.in_interface == var.self.tunnel_name
     error_message = "return (in_interface) clamp must be present on the tunnel interface"
   }
 

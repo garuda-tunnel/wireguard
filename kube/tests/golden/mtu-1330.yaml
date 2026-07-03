@@ -103,15 +103,6 @@ spec:
               value: "1290"
             - name: WG_MSS_CLAMP_ENABLED
               value: "true"
-            # WG_NIC_ATTACH advertises to the wireguard postup.sh script which
-            # secondary interfaces are attached. The Compose stack mapped
-            # this to docker bridge networks; the k3s deployment maps it
-            # to Multus NetworkAttachmentDefinitions via the pod
-            # annotation `k8s.v1.cni.cncf.io/networks`. postup.sh treats
-            # `border` membership as the trigger for installing the NAT
-            # postrouting rule and the via_tunnel RPDB.
-            - name: WG_NIC_ATTACH
-              value: "[\"backbone\",\"border\"]"
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]

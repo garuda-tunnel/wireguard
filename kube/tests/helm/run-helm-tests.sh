@@ -16,7 +16,7 @@ GOLDEN_DIR="${SCRIPT_DIR}/../golden"
 # automatically via `dependency_update = true` on helm_release.
 helm dependency update "${CHART_DIR}"
 
-for scenario in default with-ospf with-transit-provider; do
+for scenario in default; do
   values_file="${SCRIPT_DIR}/values-${scenario}.yaml"
   helm lint "${CHART_DIR}" -f "${values_file}"
 

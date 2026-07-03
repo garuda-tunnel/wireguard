@@ -53,7 +53,6 @@ NFTSTUB
     export CAPTURE
 
     export WG_INTERFACE="wg-test"
-    export WG_NIC_ATTACH='[]'
     export WG_FIXED_MSS="$wg_fixed_mss"
 
     if [ -n "$wg_mss_clamp_enabled" ]; then

@@ -77,7 +77,7 @@ spec:
               # the WireGuard config's `Endpoint = <host>:<port>` line.
               # The deployment template joins host and listen_port the same way
               # to form the WireGuard Endpoint value.
-              value: {{ printf "%s:%d" .Values.peer.endpoint_host (int .Values.peer.endpoint_listen_port) | quote }}
+              value: {{ printf "%s:%d" .Values.peer.endpoint_host (int .Values.peer.listen_port) | quote }}
             - name: WG_PEER_ALLOWED_IPS
               value: {{ join "," .Values.allowed_nets | quote }}
             - name: WG_PEER_PERSISTENT_KEEPALIVE
@@ -92,15 +92,6 @@ spec:
               value: {{ .Values.mtuPolicy.fixedMss | quote }}
             - name: WG_MSS_CLAMP_ENABLED
               value: {{ .Values.mtuPolicy.mssClampEnabled | quote }}
-            # WG_NIC_ATTACH advertises to the wireguard postup.sh script which
-            # secondary interfaces are attached. The Compose stack mapped
-            # this to docker bridge networks; the k3s deployment maps it
-            # to Multus NetworkAttachmentDefinitions via the pod
-            # annotation `k8s.v1.cni.cncf.io/networks`. postup.sh treats
-            # `border` membership as the trigger for installing the NAT
-            # postrouting rule and the via_tunnel RPDB.
-            - name: WG_NIC_ATTACH
-              value: {{ .Values.nic_attach | toJson | quote }}
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]

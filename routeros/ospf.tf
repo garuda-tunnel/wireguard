@@ -5,24 +5,24 @@
 # Announces all connected prefixes into OSPF (redistribute=connected).
 
 resource "routeros_routing_ospf_instance" "this" {
-  name         = "garuda-${var.config.tunnel_name}"
-  router_id    = var.router_id
+  name         = "garuda-${var.self.tunnel_name}"
+  router_id    = var.ospf_router_id
   redistribute = ["connected"]
-  comment      = "garuda-${var.config.tunnel_name}"
+  comment      = "garuda-${var.self.tunnel_name}"
 }
 
 resource "routeros_routing_ospf_area" "this" {
-  name     = "garuda-${var.config.tunnel_name}"
+  name     = "garuda-${var.self.tunnel_name}"
   instance = routeros_routing_ospf_instance.this.name
   area_id  = var.ospf_area
-  comment  = "garuda-${var.config.tunnel_name}"
+  comment  = "garuda-${var.self.tunnel_name}"
 }
 
 resource "routeros_routing_ospf_interface_template" "this" {
   area       = routeros_routing_ospf_area.this.name
-  interfaces = [var.config.tunnel_name]
+  interfaces = [var.self.tunnel_name]
   type       = "ptp"
-  comment    = "garuda-${var.config.tunnel_name}"
+  comment    = "garuda-${var.self.tunnel_name}"
 
   # Match the FRR sidecar timers (backbone_network role default: hello=5, dead=15).
   # OSPF hello-interval and dead-interval MUST be identical on both sides of

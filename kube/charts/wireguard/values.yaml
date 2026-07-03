@@ -4,21 +4,15 @@ config:
   kernel_ifname: ""
   private_key: ""
   address: ""
-  subnet: ""
   listen_port: null
-  endpoint_host: null
 peer:
   public_key: ""
   endpoint_host: ""
-  endpoint_listen_port: 51820
+  listen_port: 51820
   preshared_key: ""
-  address: ""
 allowed_nets: []
 table: "off"
 persistent_keepalive: 25
-nic_attach:
-  - backbone
-  - border
 images:
   wireguard: ""
 podLabels: {}
@@ -31,7 +25,3 @@ mtuPolicy:
   effectiveMtu: 1330
   fixedMss: 1290
   mssClampEnabled: true
-# ospf: accepted by schema for backward compat; inert in chart templates —
-# frr-sidecar is MAP-injected (Kyverno MutatingPolicy). May be used by the
-# MAP profile lookup. Removed from chart rendering in Phase 4+5.
-ospf: null

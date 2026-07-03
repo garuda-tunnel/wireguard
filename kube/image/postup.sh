@@ -7,7 +7,7 @@
 #     clamping, large segments black-hole.  This is independent of
 #     whether the container egresses traffic to the public internet.
 #   - NAT (oifname "border" masquerade) and RPDB steering are installed
-#     only when "border" is present in WG_NIC_ATTACH. Internal-mesh
+#     only when the "border" interface is present on the pod. Internal-mesh
 #     participants (no border) install no NAT and no RPDB so that source
 #     IPs propagate through the backbone untouched — required for
 #     identity-aware features such as the pinning portal at 1.1.1.1:1111.
@@ -53,9 +53,9 @@ else
     echo "[POSTUP] MSS clamp applied: oifname rt-mtu only (WG_MSS_CLAMP_ENABLED not true)"
 fi
 
-# --- Block 2: gate on border attach ---
-if ! echo "${WG_NIC_ATTACH:-[]}" | grep -q '"border"'; then
-    echo "[POSTUP] border not in WG_NIC_ATTACH — skipping NAT and RPDB"
+# --- Block 2: gate on border interface presence ---
+if ! ip link show border >/dev/null 2>&1; then
+    echo "[POSTUP] border interface not present — skipping NAT and RPDB"
     exit 0
 fi
 
