@@ -59,30 +59,75 @@ if ! ip link show border >/dev/null 2>&1; then
     exit 0
 fi
 
-# --- Block 3: nft NAT (border only) ---
+# --- Block 3: nft NAT + conntrack hygiene (border only) ---
 # Append the postrouting chain to the existing table.  oifname
 # "border" only: backbone is internal mesh, never masqueraded.
 #
-# The same rule works under both topologies the role ships into:
+# The private_dst set is referenced by BOTH the postrouting return
+# and the ct-timeout rule, so the timeout assignment cannot drift
+# from "exactly the flows we masquerade out border".
+#
+# Masquerade applies only to conntrack-tracked packets, so two gaps
+# exist for half-closed TCP flows (pod /proc/sys is read-only and
+# net.netfilter.* is not in the kubelet allowed-unsafe-sysctls):
+#   * ct timeout raises close_wait from the kernel default 60 s to
+#     3600 s (the kube-proxy host value) for exactly the TCP flows
+#     the postrouting rule masquerades out border; a client holding
+#     a half-closed socket for minutes no longer outlives the entry,
+#     so its late FIN is NATed and the server sees a clean teardown.
+#     Unlisted TCP states keep the netns defaults.  The object is
+#     IPv4 only (l3proto ip); IPv6 flows keep the netns defaults.
+#     The forward chain runs before conntrack confirmation
+#     (postrouting INT_MAX), where ct timeout set still applies; on
+#     confirmed entries it is a no-op (kernel nft_ct_timeout_obj_eval).
+#   * Whatever still arrives ct state invalid (no entry, e.g. after
+#     the entry is lost) would leave border un-NATed with the
+#     client's RFC1918 source; the host rp_filter drops it and logs
+#     "martian source" (~9k lines/day on the busiest edge).  Drop it
+#     in the pod instead — no live flow changes, only leak hygiene.
+#     No legitimate flow is ever INVALID (new = SYN/NEW, established
+#     retransmits = ESTABLISHED), so this is safe on every pod that
+#     attaches border, hub included.
+#
+# Block 3 runs everywhere `border` is attached — k3s edge pods AND
+# the mini-site hub per-edge wg pods (same Multus border NAD; their
+# border carries the same edge->internet transit steered by RPDB
+# border_egress, and their locally-originated control traffic — OSPF
+# on backbone/wg — leaves via the output hook, never forward) — plus
+# the compose hub stack:
 #   * Compose hub stack — `border` is a docker bridge network; the
 #     host adds a MASQUERADE rule on eth0 for traffic egressing the
 #     bridge, so this in-container rule and the host rule chain
 #     together to deliver the packet to the internet.
-#   * k3s edge pod — `border` is a Multus NetworkAttachmentDefinition
-#     backed by a Linux bridge plugin configured with
-#     isGateway=true, ipMasq=true. The bridge plugin itself owns the
-#     host-side iptables MASQUERADE rule (see
+#   * k3s pod (edge or hub) — `border` is a Multus
+#     NetworkAttachmentDefinition backed by a Linux bridge plugin
+#     configured with isGateway=true, ipMasq=true. The bridge plugin
+#     itself owns the host-side iptables MASQUERADE rule (see
 #     modules/garuda_k8s/charts/garuda/templates/nad-border.yaml),
 #     so packets that leave the pod via `border` are masqueraded by
-#     CNI before they hit the edge VM's primary NIC.
+#     CNI before they hit the VM's primary NIC.
+# Deployments without border (internal-mesh participants; the
+# mini-site hub-ros wg pod is backbone-only) never reach this block.
 nft -f - <<EOF
 table inet ${TABLE_NAME} {
+    set private_dst {
+        type ipv4_addr
+        flags interval
+        elements = { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10 }
+    }
+    ct timeout border_tcp_timeout {
+        protocol tcp;
+        l3proto ip;
+        policy = { close_wait : 3600 }
+    }
+    chain forward_border {
+        type filter hook forward priority filter; policy accept;
+        oifname "border" ct state invalid drop
+        oifname "border" ip protocol tcp ip daddr != @private_dst ct timeout set "border_tcp_timeout"
+    }
     chain postrouting {
         type nat hook postrouting priority 100; policy accept;
-        ip daddr 10.0.0.0/8 return
-        ip daddr 172.16.0.0/12 return
-        ip daddr 192.168.0.0/16 return
-        ip daddr 100.64.0.0/10 return
+        ip daddr @private_dst return
         oifname "border" masquerade
     }
 }
