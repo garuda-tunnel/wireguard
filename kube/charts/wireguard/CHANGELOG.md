@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.1](https://github.com/garuda-tunnel/wireguard-internal/compare/v2.0.0...v2.0.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **kube:** drop untracked packets leaving border and keep CLOSE_WAIT flows tracked ([#29](https://github.com/garuda-tunnel/wireguard-internal/issues/29)) ([581bbfa](https://github.com/garuda-tunnel/wireguard-internal/commit/581bbfa70f0982565fd5a9044618beff12a18a05))
+* require OpenTofu &gt;= 1.10 for null-guarded validations ([#32](https://github.com/garuda-tunnel/wireguard-internal/issues/32)) ([09aeb9b](https://github.com/garuda-tunnel/wireguard-internal/commit/09aeb9b2a555287bed4d85f97a980c4199377824))
+
 ## [1.2.0](https://github.com/garuda-tunnel/wireguard-internal/compare/v1.1.0...v1.2.0) (2026-06-24)
 
 
