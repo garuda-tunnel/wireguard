@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2](https://github.com/garuda-tunnel/wireguard-internal/compare/v2.0.1...v2.0.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* move default tunnel ports off flannel wireguard-native (51820/51821) ([#34](https://github.com/garuda-tunnel/wireguard-internal/issues/34)) ([fd9b6d5](https://github.com/garuda-tunnel/wireguard-internal/commit/fd9b6d563afd24a17003a8efc64ca4cabe2640ea))
+
 ## [2.0.1](https://github.com/garuda-tunnel/wireguard-internal/compare/v2.0.0...v2.0.1) (2026-11-14)
 
 
