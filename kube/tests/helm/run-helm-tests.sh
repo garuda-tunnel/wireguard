@@ -37,64 +37,28 @@ for scenario in default; do
   echo "ok: ${scenario}"
 done
 
-# MTU alignment: mtuPolicy.* must render as WG_EFFECTIVE_MTU/WG_FIXED_MSS/WG_MSS_CLAMP_ENABLED
-# env vars in the deployment. No legacy WG_MTU.
-mtu_scenario="mtu-1330"
-helm lint "${CHART_DIR}" -f "${SCRIPT_DIR}/values-${mtu_scenario}.yaml"
-mtu_out="$(helm template wg "${CHART_DIR}" --namespace garuda -f "${SCRIPT_DIR}/values-${mtu_scenario}.yaml")"
-mtu_golden="${GOLDEN_DIR}/${mtu_scenario}.yaml"
-
-if ! echo "${mtu_out}" | grep -q 'WG_EFFECTIVE_MTU'; then
-  echo "FAIL: WG_EFFECTIVE_MTU env var missing from deployment when mtuPolicy.effectiveMtu is set" >&2
+# Negative checks: the chart must refuse to render without the module-provided
+# keys (peer.listen_port, mtuPolicy). An overlay file with null deletes the
+# key from the merged values (unlike --set key=null, which leaves an explicit
+# null), so the schema must reject each render. The last check catches
+# test-only defaults creeping back into values.yaml: with no values file the
+# chart alone must not satisfy its own schema.
+if helm template wg "${CHART_DIR}" --namespace garuda -f "${SCRIPT_DIR}/values-default.yaml" \
+    -f <(printf 'peer:\n  listen_port: null\n') >/dev/null 2>&1; then
+  echo "FAIL: render succeeded without peer.listen_port; schema must reject it" >&2
   exit 1
 fi
+echo "ok: negative peer.listen_port"
 
-if ! echo "${mtu_out}" | grep -q 'WG_FIXED_MSS'; then
-  echo "FAIL: WG_FIXED_MSS env var missing from deployment when mtuPolicy.fixedMss is set" >&2
+if helm template wg "${CHART_DIR}" --namespace garuda -f "${SCRIPT_DIR}/values-default.yaml" \
+    -f <(printf 'mtuPolicy: null\n') >/dev/null 2>&1; then
+  echo "FAIL: render succeeded without mtuPolicy; schema must reject it" >&2
   exit 1
 fi
+echo "ok: negative mtuPolicy"
 
-if ! echo "${mtu_out}" | grep -q 'WG_MSS_CLAMP_ENABLED'; then
-  echo "FAIL: WG_MSS_CLAMP_ENABLED env var missing from deployment when mtuPolicy.mssClampEnabled is set" >&2
+if helm template wg "${CHART_DIR}" --namespace garuda >/dev/null 2>&1; then
+  echo "FAIL: render succeeded with no values file; values.yaml must not default schema-required keys" >&2
   exit 1
 fi
-
-if ! echo "${mtu_out}" | grep -q '"1330"'; then
-  echo "FAIL: effectiveMtu value 1330 not found in deployment env" >&2
-  exit 1
-fi
-
-if ! echo "${mtu_out}" | grep -q '"1290"'; then
-  echo "FAIL: fixedMss value 1290 not found in deployment env" >&2
-  exit 1
-fi
-
-if echo "${mtu_out}" | grep -q 'WG_MTU'; then
-  echo "FAIL: legacy WG_MTU must NOT appear in deployment (replaced by WG_EFFECTIVE_MTU)" >&2
-  exit 1
-fi
-
-if [[ "${REGEN_GOLDEN:-0}" == "1" ]]; then
-  printf '%s\n' "${mtu_out}" > "${mtu_golden}"
-  echo "regenerated ${mtu_golden}"
-elif [[ -f "${mtu_golden}" ]]; then
-  if ! diff -u "${mtu_golden}" <(printf '%s\n' "${mtu_out}"); then
-    echo "golden mismatch for ${mtu_scenario}" >&2
-    exit 1
-  fi
-fi
-
-echo "ok: ${mtu_scenario}"
-
-# mtuPolicy env vars must appear in default deployment too (always unconditional).
-default_out="$(helm template wg "${CHART_DIR}" --namespace garuda -f "${SCRIPT_DIR}/values-default.yaml")"
-if ! echo "${default_out}" | grep -q 'WG_EFFECTIVE_MTU'; then
-  echo "FAIL: WG_EFFECTIVE_MTU must appear in default deployment (mtuPolicy always rendered)" >&2
-  exit 1
-fi
-if echo "${default_out}" | grep -q 'WG_MTU'; then
-  echo "FAIL: legacy WG_MTU must NOT appear in default deployment" >&2
-  exit 1
-fi
-
-echo "ok: default-mtu-policy"
+echo "ok: negative no-values"

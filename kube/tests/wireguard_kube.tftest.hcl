@@ -15,7 +15,7 @@ variables {
   remote = {
     public_key    = "stubpublickey"
     endpoint_host = "hub.example.net"
-    listen_port   = 51820
+    listen_port   = 55820
     preshared_key = null
   }
 
@@ -52,7 +52,7 @@ run "values_map_self_and_remote" {
     error_message = "peer.endpoint_host must come from remote"
   }
   assert {
-    condition     = strcontains(helm_release.wireguard.values[0], "\"listen_port\": 51820")
+    condition     = strcontains(helm_release.wireguard.values[0], "\"listen_port\": 55820")
     error_message = "peer.listen_port must come from remote.listen_port"
   }
   assert {
@@ -105,7 +105,7 @@ run "remote_least_privilege_no_private_key_propagates" {
     remote = {
       public_key    = "stubpublickey"
       endpoint_host = "hub.example.net"
-      listen_port   = 51820
+      listen_port   = 55820
       preshared_key = null
       private_key   = "REMOTE-PRIVATE-MUST-NOT-LEAK"
     }
@@ -139,6 +139,58 @@ run "invalid_ifname_too_long_rejected" {
   }
 
   expect_failures = [var.self]
+}
+
+# 51820/51821 are flannel wireguard-native's UDP ports on every k3s node; a
+# tunnel hostPort there DNAT-steals flannel's packets, so both must be rejected.
+run "self_flannel_wg_port_51820_rejected" {
+  command = plan
+
+  variables {
+    self = {
+      kernel_ifname = "wg-pt"
+      private_key   = "stubprivatekey"
+      address       = "192.0.2.2/30"
+      listen_port   = 51820
+    }
+  }
+
+  expect_failures = [var.self]
+}
+
+run "self_flannel_wg_port_51821_rejected" {
+  command = plan
+
+  variables {
+    self = {
+      kernel_ifname = "wg-pt"
+      private_key   = "stubprivatekey"
+      address       = "192.0.2.2/30"
+      listen_port   = 51821
+    }
+  }
+
+  expect_failures = [var.self]
+}
+
+# Any port other than 51820/51821 is valid. 51822 (not the remote fixture's
+# 55820) proves the rendered listen_port comes from self.
+run "self_nonstandard_listen_port_accepted" {
+  command = plan
+
+  variables {
+    self = {
+      kernel_ifname = "wg-pt"
+      private_key   = "stubprivatekey"
+      address       = "192.0.2.2/30"
+      listen_port   = 51822
+    }
+  }
+
+  assert {
+    condition     = strcontains(helm_release.wireguard.values[0], "\"listen_port\": 51822")
+    error_message = "an allowed self.listen_port must plan and reach the rendered helm values"
+  }
 }
 
 run "empty_wireguard_image_omits_images_key" {

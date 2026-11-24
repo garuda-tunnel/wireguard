@@ -1,14 +1,19 @@
 namespace: garuda
 name: "wireguard"
+# 51820/51821 are the standard WireGuard ports, used by k3s flannel
+# wireguard-native on every node; a tunnel hostPort on them would steal
+# flannel's packets. Use any other port for listen_port/hostPort.
 config:
   kernel_ifname: ""
   private_key: ""
   address: ""
   listen_port: null
+# peer.listen_port and mtuPolicy have no defaults here: both are required by
+# values.schema.json and always passed by the Terraform module (kube/main.tf).
+# A render without them fails loudly on the schema.
 peer:
   public_key: ""
   endpoint_host: ""
-  listen_port: 51820
   preshared_key: ""
 allowed_nets: []
 table: "off"
@@ -17,11 +22,3 @@ images:
   wireguard: ""
 podLabels: {}
 podAnnotations: {}
-# mtuPolicy: MTU and MSS clamp policy resolved by Terraform from var.mtu_policy.
-# These values are always injected by the Terraform module and rendered
-# unconditionally as WG_EFFECTIVE_MTU, WG_FIXED_MSS, WG_MSS_CLAMP_ENABLED env vars.
-# Defaults here cover direct helm install / chart tests only.
-mtuPolicy:
-  effectiveMtu: 1330
-  fixedMss: 1290
-  mssClampEnabled: true

@@ -27,6 +27,14 @@ variable "self" {
     condition     = length(var.self.kernel_ifname) <= 15
     error_message = "self.kernel_ifname must be at most 15 characters (Linux IFNAMSIZ-1)."
   }
+
+  validation {
+    condition = (
+      var.self.listen_port == null ||
+      (var.self.listen_port != 51820 && var.self.listen_port != 51821)
+    )
+    error_message = "self.listen_port must not be 51820 or 51821: these are the standard WireGuard ports, which k3s flannel wireguard-native uses on every node, and a tunnel hostPort on them would steal flannel's packets. Use any other port."
+  }
 }
 
 variable "remote" {

@@ -8,7 +8,7 @@ config:
 peer:
   public_key: stubpublickey
   endpoint_host: hub.example.net
-  listen_port: 51820
+  listen_port: 55820
   preshared_key: ""
 allowed_nets:
   - 0.0.0.0/0
@@ -16,7 +16,9 @@ table: "off"
 persistent_keepalive: 25
 images:
   wireguard: ghcr.io/garuda-tunnel/garuda-wireguard:latest
+# Non-default MTU policy (schema bands: effectiveMtu 1280..1420, fixedMss
+# 536..1460) so the golden pins what values actually pass, not a chart default.
 mtuPolicy:
-  effectiveMtu: 1330
-  fixedMss: 1290
-  mssClampEnabled: true
+  effectiveMtu: 1280
+  fixedMss: 1240
+  mssClampEnabled: false

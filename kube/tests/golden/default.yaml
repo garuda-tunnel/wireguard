@@ -92,17 +92,17 @@ spec:
               # the WireGuard config's `Endpoint = <host>:<port>` line.
               # The deployment template joins host and listen_port the same way
               # to form the WireGuard Endpoint value.
-              value: "hub.example.net:51820"
+              value: "hub.example.net:55820"
             - name: WG_PEER_ALLOWED_IPS
               value: "0.0.0.0/0"
             - name: WG_PEER_PERSISTENT_KEEPALIVE
               value: "25"
             - name: WG_EFFECTIVE_MTU
-              value: "1330"
+              value: "1280"
             - name: WG_FIXED_MSS
-              value: "1290"
+              value: "1240"
             - name: WG_MSS_CLAMP_ENABLED
-              value: "true"
+              value: "false"
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]

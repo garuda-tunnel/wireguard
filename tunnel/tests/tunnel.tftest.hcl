@@ -10,12 +10,12 @@ variables {
   peers = {
     hub = {
       address       = "192.0.2.1/28"
-      listen_port   = 51820
+      listen_port   = 55820
       endpoint_host = "hub.example.net"
     }
     edge = {
       address       = "192.0.2.2/28"
-      listen_port   = 51820
+      listen_port   = 55820
       endpoint_host = "edge.example.net"
     }
   }
