@@ -1,28 +1,15 @@
 ---
-# Source: wireguard/templates/secret.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: wg-wg-pt-keys
-  namespace: "garuda"
-  labels:
-    app.kubernetes.io/name: wireguard
-    app.kubernetes.io/instance: "wg-pt"
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/part-of: garuda
-    garuda.managed-by: helm
-type: Opaque
-stringData:
-  WG_PRIVATE_KEY: "stubprivatekey"
-  WG_PEER_PUBLIC_KEY: "stubpublickey"
-
----
 # Source: wireguard/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: "wg-pt"
   namespace: "garuda"
+  annotations:
+    # Stakater Reloader (namespace-scoped, from modules/garuda_k8s) watches the
+    # Terraform-owned credentials Secret and rolls this Deployment when its
+    # keys change; the release itself does not change.
+    secret.reloader.stakater.com/reload: "wg-wg-pt-credentials"
   labels:
     app.kubernetes.io/name: wireguard
     app.kubernetes.io/instance: "wg-pt"
@@ -76,10 +63,12 @@ spec:
           image: "ghcr.io/garuda-tunnel/garuda-wireguard:latest"
           imagePullPolicy: IfNotPresent
           envFrom:
-            # The secret carries WG_PRIVATE_KEY, WG_PEER_PUBLIC_KEY and
-            # the optional WG_PEER_PRESHARED_KEY.
+            # The Terraform-owned Secret named by credentialsSecretName carries
+            # WG_PRIVATE_KEY, WG_PEER_PUBLIC_KEY and WG_PEER_PRESHARED_KEY
+            # (kube/main.tf); Stakater Reloader rolls this Deployment when it
+            # changes.
             - secretRef:
-                name: wg-wg-pt-keys
+                name: wg-wg-pt-credentials
           env:
             - name: WG_INTERFACE
               value: "wg-pt"

@@ -59,6 +59,25 @@ module "wireguard_kube_pt" {
 }
 ```
 
+## Secrets
+
+The tunnel keys (`self.private_key`, `remote.public_key`,
+`remote.preshared_key`) live in the Terraform-owned Secret
+`wg-<name>-credentials` (keys `WG_PRIVATE_KEY`, `WG_PEER_PUBLIC_KEY`,
+`WG_PEER_PRESHARED_KEY`), never in Helm values: the helm provider stores the
+deployed release's values unredacted in the computed `metadata.values`, so any
+plan that touches the release would print them (issue #36).
+
+- **Breaking:** the target namespace must run Stakater Reloader
+  (`modules/garuda_k8s` from garuda >= 0.25.0). The Deployment's
+  `secret.reloader.stakater.com/reload: wg-<name>-credentials` annotation names
+  the Secret, so a key change applied through `tofu apply` rolls the pod
+  without any change to the release.
+- Upgrade caveat: the first plan after upgrading still prints the old
+  `metadata.values` (with the keys) from state; protect that plan and rotate
+  keys already printed in CI logs. Terraform state keeps the keys in plain
+  text.
+
 ## What this module does NOT do
 
 - No `hostNetwork`. The pod uses the pod network namespace and attaches
@@ -72,6 +91,20 @@ module "wireguard_kube_pt" {
   Whereabouts installation.
 - No multi-replica scaling. WireGuard private state is single-instance by
   construction.
+
+## Upgrading from 2.x to 3.0.0 (breaking)
+
+- Bump `garuda_k8s` first — garuda >= 0.25.0 installs Stakater Reloader
+  into the namespace (see the Secrets section above for the rollout
+  contract and its namespace-scoped RBAC).
+- Pin `?ref=v3.0.0` and `chart_version = "3.0.0"` together.
+- The tunnel keys move from Helm values to the Terraform-owned Secret
+  `wg-<name>-credentials`; with the usual `name = "wg-<edge>"` that is
+  `wg-wg-<edge>-credentials`. No key value rotates: the keys travel
+  as-is, and module inputs and outputs are unchanged.
+- The first plan after upgrading prints the old `metadata.values` (with
+  the keys) from state once. Keep that plan off shared logs; Terraform
+  state keeps the keys in plain text.
 
 ## Upgrading from 1.x to 2.0.0 (breaking)
 

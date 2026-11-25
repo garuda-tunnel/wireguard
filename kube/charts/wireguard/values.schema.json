@@ -2,19 +2,19 @@
   "$schema": "https://json-schema.org/draft-07/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["namespace", "name", "config", "peer", "allowed_nets", "table", "persistent_keepalive", "images", "mtuPolicy"],
+  "required": ["namespace", "name", "config", "peer", "allowed_nets", "table", "persistent_keepalive", "images", "mtuPolicy", "credentialsSecretName"],
   "properties": {
     "namespace": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" },
     "name": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" },
+    "credentialsSecretName": { "type": "string", "minLength": 1 },
     "podLabels":      { "type": "object", "additionalProperties": { "type": "string" } },
     "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
     "config": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kernel_ifname", "private_key", "address"],
+      "required": ["kernel_ifname", "address"],
       "properties": {
         "kernel_ifname": { "type": "string", "maxLength": 15 },
-        "private_key":   { "type": "string" },
         "address":       { "type": "string" },
         "listen_port":   { "type": ["integer", "null"] }
       }
@@ -22,12 +22,10 @@
     "peer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["public_key", "endpoint_host", "listen_port"],
+      "required": ["endpoint_host", "listen_port"],
       "properties": {
-        "public_key":    { "type": "string" },
         "endpoint_host": { "type": "string" },
-        "listen_port":   { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "preshared_key": { "type": "string" }
+        "listen_port":   { "type": "integer", "minimum": 1, "maximum": 65535 }
       }
     },
     "allowed_nets":         { "type": "array", "items": { "type": "string" } },

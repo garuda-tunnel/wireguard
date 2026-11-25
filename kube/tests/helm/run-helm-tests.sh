@@ -38,11 +38,11 @@ for scenario in default; do
 done
 
 # Negative checks: the chart must refuse to render without the module-provided
-# keys (peer.listen_port, mtuPolicy). An overlay file with null deletes the
-# key from the merged values (unlike --set key=null, which leaves an explicit
-# null), so the schema must reject each render. The last check catches
-# test-only defaults creeping back into values.yaml: with no values file the
-# chart alone must not satisfy its own schema.
+# keys (peer.listen_port, mtuPolicy, credentialsSecretName). An overlay file
+# with null deletes the key from the merged values (unlike --set key=null, which
+# leaves an explicit null), so the schema must reject each render. The last
+# check catches test-only defaults creeping back into values.yaml: with no
+# values file the chart alone must not satisfy its own schema.
 if helm template wg "${CHART_DIR}" --namespace garuda -f "${SCRIPT_DIR}/values-default.yaml" \
     -f <(printf 'peer:\n  listen_port: null\n') >/dev/null 2>&1; then
   echo "FAIL: render succeeded without peer.listen_port; schema must reject it" >&2
@@ -56,6 +56,19 @@ if helm template wg "${CHART_DIR}" --namespace garuda -f "${SCRIPT_DIR}/values-d
   exit 1
 fi
 echo "ok: negative mtuPolicy"
+
+# A missing/empty credentials Secret name must fail on the schema: the name
+# must come from the Terraform module (kube/main.tf), never from a chart
+# default, or the Deployment would reference a Secret nobody owns.
+for missing in null '""'; do
+  if schema_out="$(helm template wg "${CHART_DIR}" --namespace garuda -f "${SCRIPT_DIR}/values-default.yaml" --set-json "credentialsSecretName=${missing}" 2>&1)"; then
+    echo "FAIL: schema accepted missing/empty credentialsSecretName" >&2
+    exit 1
+  fi
+  [[ "${schema_out}" == *credentialsSecretName* ]] \
+    || { echo "FAIL: render failed for a reason other than credentialsSecretName: ${schema_out}" >&2; exit 1; }
+done
+echo "ok: negative credentialsSecretName"
 
 if helm template wg "${CHART_DIR}" --namespace garuda >/dev/null 2>&1; then
   echo "FAIL: render succeeded with no values file; values.yaml must not default schema-required keys" >&2

@@ -3,18 +3,16 @@ name: "wireguard"
 # 51820/51821 are the standard WireGuard ports, used by k3s flannel
 # wireguard-native on every node; a tunnel hostPort on them would steal
 # flannel's packets. Use any other port for listen_port/hostPort.
+# peer.listen_port, mtuPolicy and credentialsSecretName have no defaults here:
+# all three are required by values.schema.json and always passed by the
+# Terraform module (kube/main.tf). A render without them fails loudly on the
+# schema.
 config:
   kernel_ifname: ""
-  private_key: ""
   address: ""
   listen_port: null
-# peer.listen_port and mtuPolicy have no defaults here: both are required by
-# values.schema.json and always passed by the Terraform module (kube/main.tf).
-# A render without them fails loudly on the schema.
 peer:
-  public_key: ""
   endpoint_host: ""
-  preshared_key: ""
 allowed_nets: []
 table: "off"
 persistent_keepalive: 25

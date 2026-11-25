@@ -3,6 +3,11 @@ kind: Deployment
 metadata:
   name: {{ .Values.name | quote }}
   namespace: {{ .Values.namespace | quote }}
+  annotations:
+    # Stakater Reloader (namespace-scoped, from modules/garuda_k8s) watches the
+    # Terraform-owned credentials Secret and rolls this Deployment when its
+    # keys change; the release itself does not change.
+    secret.reloader.stakater.com/reload: {{ .Values.credentialsSecretName | quote }}
   labels:
     {{- include "wireguard.labels" . | nindent 4 }}
 spec:
@@ -61,10 +66,12 @@ spec:
               protocol: UDP
           {{- end }}
           envFrom:
-            # The secret carries WG_PRIVATE_KEY, WG_PEER_PUBLIC_KEY and
-            # the optional WG_PEER_PRESHARED_KEY.
+            # The Terraform-owned Secret named by credentialsSecretName carries
+            # WG_PRIVATE_KEY, WG_PEER_PUBLIC_KEY and WG_PEER_PRESHARED_KEY
+            # (kube/main.tf); Stakater Reloader rolls this Deployment when it
+            # changes.
             - secretRef:
-                name: wg-{{ .Values.name }}-keys
+                name: {{ .Values.credentialsSecretName }}
           env:
             - name: WG_INTERFACE
               value: {{ .Values.config.kernel_ifname | quote }}

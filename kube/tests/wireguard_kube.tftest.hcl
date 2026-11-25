@@ -34,8 +34,8 @@ run "chart_resolves_from_oci" {
     error_message = "helm_release.chart must be the OCI chart name 'wireguard'"
   }
   assert {
-    condition     = helm_release.wireguard.version == "2.0.0"
-    error_message = "helm_release.version must default to 2.0.0 from var.chart_version"
+    condition     = helm_release.wireguard.version == var.chart_version
+    error_message = "helm_release.version must come from var.chart_version"
   }
 }
 
@@ -298,5 +298,119 @@ run "passthrough_annotations_labels_configmaps" {
   assert {
     condition     = length(kubernetes_config_map.garuda_extra) == 1 && contains(keys(kubernetes_config_map.garuda_extra), "wg-hub-ros-frr-extra")
     error_message = "one ConfigMap must be planned per configmaps entry, keyed by CM name"
+  }
+}
+
+# The helm provider (>= 2.13) stores the deployed values unredacted in the
+# computed metadata.values that plans print whenever the release changes
+# (issue #36). The tunnel keys must therefore travel in the Terraform-owned
+# Secret, never through helm_release.values or set_sensitive (the #37
+# approach, rejected in review).
+run "secrets_never_in_helm_values" {
+  command = plan
+
+  variables {
+    self = {
+      kernel_ifname = "wg-pt"
+      private_key   = "FIXTURE-PRIVATE-KEY"
+      address       = "192.0.2.2/30"
+      listen_port   = null
+    }
+    remote = {
+      public_key    = "stubpublickey"
+      endpoint_host = "hub.example.net"
+      listen_port   = 55820
+      preshared_key = "FIXTURE-PRESHARED-KEY"
+    }
+  }
+
+  assert {
+    condition     = alltrue([for doc in helm_release.wireguard.values : !strcontains(doc, "FIXTURE-PRIVATE-KEY")])
+    error_message = "the private key must not appear in any helm_release.values document"
+  }
+  assert {
+    condition     = alltrue([for doc in helm_release.wireguard.values : !strcontains(doc, "FIXTURE-PRESHARED-KEY")])
+    error_message = "the preshared key must not appear in any helm_release.values document"
+  }
+  assert {
+    condition     = alltrue([for doc in helm_release.wireguard.values : !strcontains(doc, var.remote.public_key)])
+    error_message = "the peer public key must not appear in any helm_release.values document; no template reads it, and the credentials Secret provides WG_PEER_PUBLIC_KEY"
+  }
+  assert {
+    condition     = try(length(helm_release.wireguard.set_sensitive), 0) == 0
+    error_message = "helm_release must not pass anything via set_sensitive"
+  }
+}
+
+run "secret_carries_tunnel_keys" {
+  command = plan
+
+  variables {
+    self = {
+      kernel_ifname = "wg-pt"
+      private_key   = "FIXTURE-PRIVATE-KEY"
+      address       = "192.0.2.2/30"
+      listen_port   = null
+    }
+    remote = {
+      public_key    = "stubpublickey"
+      endpoint_host = "hub.example.net"
+      listen_port   = 55820
+      preshared_key = "FIXTURE-PRESHARED-KEY"
+    }
+  }
+
+  assert {
+    condition     = kubernetes_secret_v1.credentials.metadata[0].name == "wg-${var.name}-credentials"
+    error_message = "the credentials Secret must be named wg-<name>-credentials"
+  }
+  assert {
+    condition     = kubernetes_secret_v1.credentials.metadata[0].namespace == var.namespace
+    error_message = "the credentials Secret must live in var.namespace"
+  }
+  assert {
+    condition = kubernetes_secret_v1.credentials.data == tomap({
+      WG_PRIVATE_KEY        = "FIXTURE-PRIVATE-KEY"
+      WG_PEER_PUBLIC_KEY    = var.remote.public_key
+      WG_PEER_PRESHARED_KEY = "FIXTURE-PRESHARED-KEY"
+    })
+    error_message = "the credentials Secret must carry WG_PRIVATE_KEY, WG_PEER_PUBLIC_KEY and WG_PEER_PRESHARED_KEY"
+  }
+}
+
+run "chart_gets_secret_name" {
+  command = plan
+
+  assert {
+    condition     = yamldecode(helm_release.wireguard.values[0]).credentialsSecretName == "wg-${var.name}-credentials"
+    error_message = "the rendered values must pass credentialsSecretName so envFrom and the reload annotation name the Terraform-owned Secret"
+  }
+}
+
+# preshared_key is optional. A null key is written as "": entrypoint.sh
+# treats an empty WG_PEER_PRESHARED_KEY as absent, and a fixed key set avoids
+# map keys whose presence is unknown at plan.
+run "null_preshared_key_is_empty_string" {
+  command = plan
+
+  assert {
+    condition     = kubernetes_secret_v1.credentials.data["WG_PEER_PRESHARED_KEY"] == ""
+    error_message = "a null preshared_key must be written as the empty string"
+  }
+}
+
+# The tunnel module's keys are computed, so on the first apply both are unknown
+# at plan time; the module must stay plannable (a for_each derived from the
+# keys' null-ness crashed OpenTofu 1.13 in the #37 approach).
+run "plans_with_keys_unknown_until_apply" {
+  command = plan
+
+  module {
+    source = "./tests/unknown_keys"
+  }
+
+  assert {
+    condition     = output.deployment_name == "wg-pt"
+    error_message = "the module must plan while the tunnel keys are unknown until apply"
   }
 }

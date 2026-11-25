@@ -1,15 +1,14 @@
 namespace: garuda
 name: wg-pt
+# The Terraform module always passes this (kube/main.tf); no chart default.
+credentialsSecretName: wg-wg-pt-credentials
 config:
   kernel_ifname: wg-pt
-  private_key: stubprivatekey
   address: 192.0.2.2/30
   listen_port: null
 peer:
-  public_key: stubpublickey
   endpoint_host: hub.example.net
   listen_port: 55820
-  preshared_key: ""
 allowed_nets:
   - 0.0.0.0/0
 table: "off"
