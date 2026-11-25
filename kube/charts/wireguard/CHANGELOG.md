@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/garuda-tunnel/wireguard-internal/compare/v2.0.2...v3.0.0) (2026-11-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **kube:** requires Stakater Reloader in the target namespace (garuda_k8s from garuda >= 0.25.0); keys move to Secret wg-<name>-credentials; chart values config.private_key, peer.preshared_key and peer.public_key are removed; the first plan after upgrading still prints the old metadata.values.
+
+### Bug Fixes
+
+* **kube:** keep tunnel keys out of Helm values ([#38](https://github.com/garuda-tunnel/wireguard-internal/issues/38)) ([5501727](https://github.com/garuda-tunnel/wireguard-internal/commit/5501727a49560dd487c7983fff86567f928d1f71)), closes [#36](https://github.com/garuda-tunnel/wireguard-internal/issues/36)
+
 ## [2.0.2](https://github.com/garuda-tunnel/wireguard-internal/compare/v2.0.1...v2.0.2) (2026-11-24)
 
 
